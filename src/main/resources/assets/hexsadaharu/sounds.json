@@ -3,10 +3,10 @@
     "subtitle": "subtitles.hexsadaharu.bark",
     "sounds": [
       {
-        "name": "minecraft:entity.wolf.ambient",
-        "type": "event",
-        "volume": 1,
-        "pitch": 0.9
+        "name": "hexsadaharu:bark",
+        "type": "file",
+        "volume": 1.0,
+        "pitch": 1.0
       }
     ]
   },
@@ -14,10 +14,10 @@
     "subtitle": "subtitles.hexsadaharu.excited",
     "sounds": [
       {
-        "name": "minecraft:entity.wolf.ambient",
-        "type": "event",
-        "volume": 1,
-        "pitch": 0.9
+        "name": "hexsadaharu:bark",
+        "type": "file",
+        "volume": 1.0,
+        "pitch": 1.16
       },
       {
         "name": "minecraft:entity.wolf.pant",
@@ -31,16 +31,10 @@
     "subtitle": "subtitles.hexsadaharu.deep_bark",
     "sounds": [
       {
-        "name": "minecraft:entity.wolf.growl",
-        "type": "event",
-        "volume": 1,
-        "pitch": 0.9
-      },
-      {
-        "name": "minecraft:entity.wolf.ambient",
-        "type": "event",
-        "volume": 1,
-        "pitch": 0.9
+        "name": "hexsadaharu:bark",
+        "type": "file",
+        "volume": 1.0,
+        "pitch": 0.72
       }
     ]
   },

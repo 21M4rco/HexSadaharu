@@ -155,6 +155,32 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
                 rot("body",0,sin(age*.2F)*.3F*envelope,0);rot("neck",0,.8F*envelope,0);rot("head",0,.5F*envelope,.2F*envelope);
                 for(int i=0;i<4;i++)rot("tail_"+i,0,-.35F*envelope,0);
             }
+            case LICK_PLAYER -> {
+                Entity friend=dog.level().getEntity(dog.gagTarget());
+                if(friend!=null&&dog.distanceToSqr(friend)<6.5) {
+                    float eye=(float)(friend.getEyeY()-dog.getY());move("head",0,(1.55F-eye)*13*envelope,0);
+                }
+                // Three or four upward sweeps of the tongue, with the tail going the whole time.
+                float sweep=Math.max(0,sin(age*.42F));
+                rot("neck",-.1F*envelope,0,0);rot("head",(-.12F+sweep*.1F)*envelope,0,.14F*envelope);
+                jaw=(.16F+sweep*.2F)*envelope;
+                move("tongue",0,-1.6F*sweep*envelope,-(2.6F+sweep*4.2F)*envelope);
+                rot("tongue",(-1.15F+sweep*.8F)*envelope,0,.1F*envelope);
+                rot("ear_left",.14F*envelope,0,.1F*envelope);rot("ear_right",.14F*envelope,0,-.1F*envelope);
+                for(int i=0;i<4;i++)rot("tail_"+i,0,sin(age*.5F-i*.5F)*.3F*envelope,0);
+            }
+            case POUT -> {
+                // Sulking at something reads as a scowl; sulking for food reads as pleading.
+                boolean cross=dog.mood()==Mood.SUSPICIOUS||dog.mood()==Mood.PROTECTIVE||dog.mood()==Mood.ALERT;
+                rot("neck",.3F*envelope,0,0);move("head",0,2.2F*envelope,0);
+                rot("head",.16F*envelope,sin(age*.05F)*.16F*envelope,0);
+                rot("ear_left",.44F*envelope,0,.32F*envelope);rot("ear_right",.44F*envelope,0,-.32F*envelope);
+                rot("tail_0",.42F*envelope,0,0);rot("tail_1",.2F*envelope,0,0);
+                for(String s:new String[]{"front_left","front_right"})rot(s+"_leg",.12F*envelope,0,0);
+                jaw=.05F*envelope;squint=(cross?.3F:.16F)*envelope;
+                if(cross)anger(envelope);
+                else {rot("brow_left",0,0,.36F*envelope);rot("brow_right",0,0,-.36F*envelope);}
+            }
             default -> {}
         }
         if(!dog.onGround()&&!dog.isInWater()) {

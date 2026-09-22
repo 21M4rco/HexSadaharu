@@ -84,4 +84,39 @@ assert '2F)' in src and 'nextIntervention=dog.now()+900' in src
 assert 'addRegionTicket' in src and 'removeRegionTicket' in src
 assert 'getDataStorage().computeIfAbsent' in src
 assert (r/'src/main/resources/assets/hexsadaharu/textures/item/kibble.png').exists()
-print('Resource, rig, closed-mouth, uniqueness, control and damage contracts passed.')
+
+# Audio: his voice must be a real Ogg Vorbis file, and mono, or Minecraft plays it
+# flat across the whole world instead of attenuating it with distance.
+sounds=json.loads((r/'src/main/resources/assets/hexsadaharu/sounds.json').read_text())
+lang=json.loads((r/'src/main/resources/assets/hexsadaharu/lang/en_us.json').read_text())
+voices=re.search(r'VOICES\s*=\s*\{(.*?)\}',(r/'src/main/java/com/hex/sadaharu/HexSadaharu.java').read_text()).group(1)
+registered=set(re.findall(r'"([a-z_]+)"',voices))
+assert set(sounds)==registered,set(sounds)^registered
+for event,body in sounds.items():
+ assert lang.get(body['subtitle']),event+' has no subtitle translation'
+ for entry in body['sounds']:
+  name=entry['name']
+  if not name.startswith('hexsadaharu:'):
+   assert entry['type']=='event' and name.startswith('minecraft:'),name
+   continue
+  assert entry.get('type','file')=='file',name+' must be a file reference'
+  ogg=r/'src/main/resources/assets/hexsadaharu/sounds'/(name.split(':',1)[1]+'.ogg')
+  assert ogg.exists(),str(ogg)+' is missing'
+  raw=ogg.read_bytes()
+  assert raw[:4]==b'OggS',ogg.name+' is not an Ogg container'
+  head=raw.index(b'\x01vorbis')
+  assert raw[head+11]==1,ogg.name+' must be mono so it attenuates with distance'
+assert [e['name'] for e in sounds['bark']['sounds']]==['hexsadaharu:bark'],'the bark event must be his own voice'
+for event in ('bark','deep_bark','excited'):
+ assert sounds[event]['sounds'][0]['name']=='hexsadaharu:bark',event+' must lead with his own bark'
+
+# Casual interactions have to be both chosen on the server and drawn on the client.
+personality=(r/'src/main/java/com/hex/sadaharu/Personality.java').read_text()
+played=set(re.findall(r'voice\("([a-z_]+)"',personality+(r/'src/main/java/com/hex/sadaharu/Sadaharu.java').read_text()))
+assert played<=registered,played-registered
+assert 'voice("bark"' in personality,'nothing ever plays the bark event'
+for act in ('HEAD_BITE','LICK_PLAYER','POUT','BARK'):
+ assert 'Act.'+act in personality,'Personality never reaches Act.'+act
+ assert 'case '+act in model or re.search(r'case [A-Z_, ]*\b'+act+r'\b',model),'SadaharuModel does not animate Act.'+act
+
+print('Resource, rig, closed-mouth, uniqueness, voice, interaction, control and damage contracts passed.')

@@ -14,9 +14,9 @@ A standalone **Minecraft Forge 1.20.1 / Java 17** companion mod. No additional g
 
 ## Design
 
-The model is original cuboid geometry rather than a vanilla wolf model: 69 bones and 315 cuboids built as stacked superellipse layers with chamfered corners, so the silhouette curves instead of stepping. A round head with low soft brows set close over round eyes, a short muzzle whose jaw closes flush with no teeth and nothing dark exposed, working eyelids, a collar band laid on an ellipse around the throat, a layered chest ruff, tapered legs and a four-part curled tail. The native model controller layers breathing, a nose twitch, a weight shift, a drifting idle gaze, ear and tail motion and gait under 49 timed gestures with smooth resting transitions. Blinking rotates the eyelids shut about every four seconds, sometimes twice.
+The model is original cuboid geometry rather than a vanilla wolf model: 69 bones and 315 cuboids built as stacked superellipse layers with chamfered corners, so the silhouette curves instead of stepping. A round head with low soft brows set close over round eyes, a short muzzle whose jaw closes flush with no teeth and nothing dark exposed, working eyelids, a collar band laid on an ellipse around the throat, a layered chest ruff, tapered legs and a four-part curled tail. The native model controller layers breathing, a nose twitch, a weight shift, a drifting idle gaze, ear and tail motion and gait under 51 timed gestures with smooth resting transitions. Blinking rotates the eyelids shut about every four seconds, sometimes twice.
 
-Sadaharu makes server-side decisions using bounded awareness caches and persisted memory. Protection is a single maximum-2-health hit followed by retreat and a 45-second cooldown. Hunger changes behavior, never health; a full meter takes roughly 100 minutes to empty. Home return is tempered by distance, danger and travel with the owner. Ordinary behavior never breaks blocks.
+Sadaharu makes server-side decisions using bounded awareness caches and persisted memory. Protection is a single maximum-2-health hit followed by retreat and a 45-second cooldown. Hunger changes behavior, never health; a full meter takes roughly 100 minutes to empty. Home return is tempered by distance, danger and travel with the owner. Ordinary behavior never breaks blocks. Casual interaction with people he knows is part of the idle layer: he closes the distance and mouths a player or villager over the head without damage or taking control of them, licks the owner at the face on his own initiative, and sulks with flattened ears and a lowered head when he is hungry or when a threat is still on his intervention cooldown.
 
 The overworld SavedData record reserves his UUID even while unloaded. Calling tickets the recorded chunk, waits for its existing entity to load, then transfers that entity, including between dimensions. It never spawns a replacement. If the saved chunk or destination is unavailable, the call reports the issue. Damage/death guards and a narrowly scoped removal override protect him; chunk unloading remains legal.
 
@@ -37,7 +37,7 @@ The overworld SavedData record reserves his UUID even while unloaded. Calling ti
 * [Bandai Channel anime profile/raised-tail frame](https://image2.b-ch.com/ttl2/3653/3653029a.jpg)
 * [TVer anime side-profile/curl frame](https://tver.jp/episodes/epz733o0bh)
 
-Reference images are not bundled. All model geometry, textures and code are authored for this mod. Sound events use the installed Minecraft sound library, including its randomized dog vocalizations.
+Reference images are not bundled. All model geometry, textures and code are authored for this mod. Every bark he has — the ordinary bark, the deep bark and the excited greeting — is one supplied recording of his voice, converted to mono Ogg Vorbis and repitched per event; `tools/verify.py` fails the build if it is missing, stops being his own voice, or is not mono, since a stereo file would play at full volume across the whole world instead of attenuating with distance. His other vocalizations use the installed Minecraft sound library.
 
 ## Manual acceptance checks
 

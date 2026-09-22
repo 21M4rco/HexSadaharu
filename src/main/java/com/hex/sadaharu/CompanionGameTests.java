@@ -32,6 +32,16 @@ public final class CompanionGameTests {
         CompanionData copy=CompanionData.load(data.save(new CompoundTag()));
         h.assertTrue(copy.dog.equals(dog.getUUID())&&copy.owner.equals(owner),"Unique world record round trips");
         h.assertTrue(SafeTravel.landing(level,p,dog)!=null,"Full-size safe placement finds the test floor");
+        for(Act a:Act.values()){dog.setAct(a);h.assertTrue(dog.act()==a,"Act "+a+" survives the synched encoding");}
+        for(String voice:HexSadaharu.VOICES)h.assertTrue(net.minecraftforge.registries.ForgeRegistries.SOUND_EVENTS.getValue(HexSadaharu.id(voice))!=null,"Sound event "+voice+" is registered");
+        // A casual interaction aimed at nobody has to release itself rather than freezing him.
+        for(Act gesture:new Act[]{Act.LICK_PLAYER,Act.HEAD_BITE}) {
+            dog.setAct(gesture);dog.gagTarget(Integer.MAX_VALUE);dog.personality.tick();
+            h.assertTrue(dog.act()==Act.NONE&&dog.gagTarget()==-1,gesture+" with no target clears itself");
+        }
+        dog.setAct(Act.POUT);
+        h.assertTrue(dog.act()==Act.POUT&&!dog.act().resting(),"Pouting is a timed gesture, not a resting pose that stalls the loop");
+        dog.setAct(Act.NONE);
         h.runAfterDelay(40,()->{
             h.assertTrue(dog.isAlive()&&dog.getHealth()>0,"Immortality survives subsequent ticks");
             var destination=level.getServer().getLevel(net.minecraft.world.level.Level.NETHER);
