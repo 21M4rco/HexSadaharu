@@ -17,6 +17,21 @@ jobs:
         run: python3 tools/verify.py
       - name: Compile and package
         run: timeout -k 30 900 bash gradlew build sourceZip --stacktrace
+      - name: Confirm one ready-to-install jar
+        run: |
+          ls -l build/libs
+          test "$(ls -1 build/libs/*.jar 2>/dev/null | wc -l)" -eq 1
+          jar=$(ls -1 build/libs/*.jar)
+          for entry in META-INF/mods.toml pack.mcmeta \
+                       com/hex/sadaharu/Sadaharu.class \
+                       com/hex/sadaharu/client/SadaharuModel.class \
+                       assets/hexsadaharu/sounds.json \
+                       assets/hexsadaharu/sounds/bark.ogg \
+                       assets/hexsadaharu/models/entity/sadaharu.json \
+                       assets/hexsadaharu/textures/entity/sadaharu.png; do
+            unzip -l "$jar" | grep -q " $entry$" || { echo "::error::$jar is missing $entry"; exit 1; }
+          done
+          echo "$jar is installable as-is"
       - name: Download Minecraft assets with one network retry
         run: bash gradlew downloadAssets || bash gradlew downloadAssets
       - name: Server integration tests
@@ -30,13 +45,21 @@ jobs:
           GALLIUM_DRIVER: llvmpipe
           MESA_GL_VERSION_OVERRIDE: "4.6"
           MESA_GLSL_VERSION_OVERRIDE: "460"
-      - uses: actions/upload-artifact@v4
+      - name: Upload the mod jar
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: HexSadaharu-Forge-1.20.1
+          path: build/libs/*.jar
+          if-no-files-found: error
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: HexSadaharu-diagnostics
           path: |
-            build/libs/*.jar
             build/distributions/*.zip
             run-gametest/logs/latest.log
             run/screenshots/*.png
             run/logs/latest.log
+          if-no-files-found: ignore

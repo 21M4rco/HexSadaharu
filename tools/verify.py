@@ -108,6 +108,18 @@ dogsrc=(r/'src/main/java/com/hex/sadaharu/Sadaharu.java').read_text()
 for field in ('Following','AutomaticHome'):
  assert 'putBoolean("'+field+'"' in dogsrc,field+' is never written to NBT'
  assert 'getBoolean("'+field+'")' in dogsrc,field+' is never read back from NBT'
+# The download has to unpack to the jar itself. Multiple paths in one artifact make
+# GitHub preserve the directory tree, which is what turns it into a folder.
+wf=(r/'.github/workflows/build.yml').read_text()
+assert 'Confirm one ready-to-install jar' in wf,'nothing checks the jar is actually installable'
+assert wf.count('uses: actions/upload-artifact')==2,'the jar and the diagnostics must be separate artifacts'
+jar_step=wf.split('name: Upload the mod jar')[1].split('      - name:')[0]
+assert 'path: build/libs/*.jar' in jar_step,'the jar artifact must name exactly one path'
+assert 'path: |' not in jar_step,'a multi-path jar artifact downloads as a folder tree'
+assert 'if-no-files-found: error' in jar_step,'a missing jar must fail the run rather than upload nothing'
+for entry in ('META-INF/mods.toml','assets/hexsadaharu/sounds/bark.ogg'):
+ assert entry in wf,'the jar check no longer verifies '+entry
+
 # He is mortal now, so the old blanket guards must stay gone and the recovery must exist.
 assert 'MAX_HEALTH,60' in dogsrc,'thirty hearts is the agreed maximum health'
 assert 'isInvulnerableTo(DamageSource d) {return true;}' not in dogsrc,'he is invulnerable to everything again'
