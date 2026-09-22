@@ -100,13 +100,33 @@ label=int(re.search(r'calls him\.",\d+,(\d+),',screen).group(1))
 assert all(y+h<=label for x,y,w,h in boxes),'a button overlaps the footer hint'
 slots=int(re.search(r'SimpleContainerData\((\d+)\)',menu).group(1))
 assert slots==int(re.search(r'getCount\(\)\{return (\d+);\}',menu).group(1)),'client and server data slot counts differ'
-assert max(int(n) for n in re.findall(r'case (\d+)->dog\.',menu.split('ContainerData()')[1].split('public void set')[0]))==slots-1,'a data slot is declared but never filled'
+filled={int(n) for n in re.findall(r'case (\d+)\s*->',menu.split('ContainerData()')[1].split('public void set')[0])}
+assert filled==set(range(slots)),'data slots declared but never filled: '+str(set(range(slots))-filled)
 
 # Following is a persisted instruction, not a transient flag.
 dogsrc=(r/'src/main/java/com/hex/sadaharu/Sadaharu.java').read_text()
 for field in ('Following','AutomaticHome'):
  assert 'putBoolean("'+field+'"' in dogsrc,field+' is never written to NBT'
  assert 'getBoolean("'+field+'")' in dogsrc,field+' is never read back from NBT'
+# He is mortal now, so the old blanket guards must stay gone and the recovery must exist.
+assert 'MAX_HEALTH,60' in dogsrc,'thirty hearts is the agreed maximum health'
+assert 'isInvulnerableTo(DamageSource d) {return true;}' not in dogsrc,'he is invulnerable to everything again'
+assert 'setHealth(float h) {super.setHealth(Float.isFinite(h)&&h>0?Math.max(h,getMaxHealth())' not in dogsrc,'setHealth still forces him back to full'
+assert 'getHealth()!=getMaxHealth()||' not in dogsrc,'the tick loop still heals him back to full every tick'
+assert re.search(r'if\(!\(amount>=getHealth\(\)\)\)return super\.hurt',dogsrc),'damage no longer reaches vanilla, so he cannot be hurt'
+for needed in ('private void collapse()','void recover()','downed=RECOVERY','super.setHealth(getMaxHealth())'):
+ assert needed in dogsrc,'the knock-down cycle is missing: '+needed
+# Recovery has to try home first, then the owner, and never leave him at zero health.
+body=dogsrc[dogsrc.index('void recover()'):]
+for step in ('SafeTravel.landing(destination,home,this)','o.blockPosition()'):
+ assert step in body,'recovery never tries: '+step
+assert body.index('SafeTravel.landing(destination,home,this)')<body.index('o.blockPosition()'),'recovery must prefer his home over his owner'
+assert 'getSharedSpawnPos()' in dogsrc[dogsrc.index('void recover()'):],'recovery has no fallback when he has neither home nor owner'
+assert 'setAct(Act.DOWNED)' in dogsrc,'nothing ever puts him down'
+for guard in ('isVehicle()||downed>0','downed<=0&&e instanceof Player','downed<=0&&!isVehicle()','home==null||downed>0'):
+ assert guard in dogsrc,'a downed Sadaharu is still reachable: '+guard
+assert 'case DOWNED' in model,'being knocked down has no pose'
+assert 'downed>0' in (r/'src/main/java/com/hex/sadaharu/WorldEvents.java').read_text(),'he can still be called away while he is down'
 assert 'getJumpPower' in dogsrc,'he still uses the vanilla jump height'
 assert re.search(r'BlockPathTypes\.WATER,\s*([0-9.]+)',dogsrc),'water pathfinding malus is unset'
 assert float(re.search(r'BlockPathTypes\.WATER,\s*([0-9.]+)',dogsrc).group(1))<=4,'water is priced so high he walks around every pond'

@@ -17,9 +17,23 @@ public final class CompanionGameTests {
         BlockPos p=h.absolutePos(new BlockPos(7,2,7));dog.moveTo(p.getX()+.5,p.getY(),p.getZ()+.5,0,0);
         h.assertTrue(level.addFreshEntity(dog),"Initial Sadaharu must join");
         UUID owner=UUID.randomUUID();dog.setOwner(owner);dog.home=p;dog.setHunger(432);dog.memories.remember("test",dog.now(),4000);data.capture(dog);
+        h.assertTrue(dog.getMaxHealth()==60,"Thirty hearts of health");
+        // Ordinary damage is real damage now.
+        dog.setHealth(dog.getMaxHealth());
+        h.assertTrue(dog.hurt(level.damageSources().generic(),9)&&dog.getHealth()==51,"An ordinary hit takes health off him");
+        dog.invulnerableTime=0;
+        // A lethal blow puts him down; it must never remove the one reserved entity.
         dog.hurt(level.damageSources().genericKill(),Float.MAX_VALUE);
-        dog.setHealth(0);dog.die(level.damageSources().genericKill());dog.remove(Entity.RemovalReason.DISCARDED);
-        h.assertTrue(dog.isAlive()&&!dog.isRemoved(),"Lethal damage and ordinary cleanup cannot remove Sadaharu");
+        h.assertTrue(dog.downed>0,"A lethal blow knocks him down");
+        h.assertTrue(dog.isAlive()&&dog.getHealth()>0&&!dog.isRemoved(),"Being knocked down never removes him or zeroes his health");
+        dog.invulnerableTime=0;
+        h.assertTrue(!dog.hurt(level.damageSources().genericKill(),Float.MAX_VALUE),"He takes no further damage while he is down");
+        dog.remove(Entity.RemovalReason.DISCARDED);
+        h.assertTrue(dog.isAlive()&&!dog.isRemoved(),"Ordinary cleanup still cannot remove Sadaharu");
+        // He picks himself up at his home, not where he fell.
+        dog.home=p;dog.homeDimension=level.dimension();dog.recover();
+        h.assertTrue(dog.downed==0&&dog.getHealth()==dog.getMaxHealth(),"Recovery restores him to full health");
+        h.assertTrue(dog.level()==level&&dog.blockPosition().distSqr(p)<400,"Recovery puts him at his home");
         Sadaharu duplicate=HexSadaharu.DOG.get().create(level);duplicate.moveTo(p.getX()+4,p.getY(),p.getZ(),0,0);
         h.assertTrue(!level.addFreshEntity(duplicate),"A second UUID must be rejected");
         dog.following=false;

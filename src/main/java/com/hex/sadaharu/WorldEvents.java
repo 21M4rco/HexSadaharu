@@ -65,6 +65,7 @@ public final class WorldEvents {
         CompanionData data=CompanionData.get(player.server);
         if(data.dog==null||!player.getUUID().equals(data.owner)){player.displayClientMessage(Component.literal("Only Sadaharu’s owner can call him."),true);return;}
         Sadaharu dog=data.loaded(player.server);
+        if(dog!=null&&dog.downed>0){player.displayClientMessage(Component.literal("Sadaharu is down; he will pick himself up shortly."),true);return;}
         if(dog!=null){arrive(dog,player);return;}
         ServerLevel from=player.server.getLevel(data.dimension);
         if(from==null){player.displayClientMessage(Component.literal("Sadaharu’s dimension is unavailable."),true);return;}

@@ -50,9 +50,9 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
         root.getAllParts().forEach(ModelPart::resetPose);
         Act act=dog.act();float age=dog.actAge(time-dog.tickCount);
         boolean asleep=act==Act.SLEEP||act==Act.SLEEP_TWITCH;
-        float envelope=ease(age/10)*(act==Act.SLEEP?1:ease((act.ticks-age)/12));
+        float envelope=ease(age/10)*(act==Act.SLEEP||act==Act.DOWNED?1:ease((act.ticks-age)/12));
         float targetSit=(act==Act.SIT||act==Act.SIT_PANT||act==Act.POOP)?1:0;
-        float targetLie=(act==Act.LIE||act==Act.CHIN||act==Act.SIDE||act==Act.SLEEP||act==Act.SLEEP_TWITCH)?1:0;
+        float targetLie=(act==Act.LIE||act==Act.CHIN||act==Act.SIDE||act==Act.SLEEP||act==Act.SLEEP_TWITCH||act==Act.DOWNED)?1:0;
         float blend=1-(float)Math.pow(.78,Math.max(.1,Minecraft.getInstance().getDeltaFrameTime()));
         dog.clientSit=Mth.lerp(blend,dog.clientSit,targetSit);dog.clientLie=Mth.lerp(blend,dog.clientLie,targetLie);
         dog.clientSleep=Mth.lerp(blend,dog.clientSleep,asleep?1:0);
@@ -191,6 +191,18 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
                 jaw=.05F*envelope;squint=(cross?.3F:.16F)*envelope;
                 if(cross)anger(envelope);
                 else {rot("brow_left",0,0,.36F*envelope);rot("brow_right",0,0,-.36F*envelope);}
+            }
+            case DOWNED -> {
+                // Collapsed onto his side: legs splayed where they landed, head down, tail dead
+                // weight. Set outright rather than added, so no idle layer twitches underneath.
+                rot("body",0,0,1.1F*envelope);move("body",3.4F*envelope,0,0);
+                rot("neck",.34F*envelope,0,0);move("head",0,1.6F*envelope,0);rot("head",.12F*envelope,0,-.55F*envelope);
+                part("ear_left").xRot=.34F*envelope;part("ear_left").zRot=.34F*envelope;
+                part("ear_right").xRot=.34F*envelope;part("ear_right").zRot=-.34F*envelope;
+                for(String s:new String[]{"front_left","front_right"}){rot(s+"_leg",-.55F*envelope,0,0);rot(s+"_paw",.45F*envelope,0,0);}
+                for(String s:new String[]{"rear_left","rear_right"}){rot(s+"_leg",.62F*envelope,0,0);rot(s+"_paw",-.3F*envelope,0,0);}
+                for(int i=0;i<4;i++){part("tail_"+i).yRot=0;part("tail_"+i).xRot=.14F*envelope;}
+                squint=envelope;jaw=.09F*envelope;
             }
             default -> {}
         }

@@ -43,7 +43,9 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     private float jumpCharge, rideSpeed;
     private boolean wasGround=true, wasWet, intentionalRemoval;
     private BlockPos safePosition;
-    public int actEnd, homebound;
+    public int actEnd, homebound, downed;
+    /** Ticks he stays collapsed before picking himself up at home. */
+    private static final int RECOVERY=140;
     public long nextIntervention;
     public float clientSit,clientLie,clientSleep,clientJaw;
 
@@ -56,7 +58,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         setPathfindingMalus(BlockPathTypes.DOOR_WOOD_CLOSED,-1);setPathfindingMalus(BlockPathTypes.FENCE,-1);
         setPathfindingMalus(BlockPathTypes.DANGER_OTHER,8);
     }
-    public static AttributeSupplier.Builder attributes() { return Mob.createMobAttributes().add(Attributes.MAX_HEALTH,40).add(Attributes.MOVEMENT_SPEED,.29).add(Attributes.FOLLOW_RANGE,28).add(Attributes.KNOCKBACK_RESISTANCE,1).add(Attributes.ATTACK_DAMAGE,2); }
+    public static AttributeSupplier.Builder attributes() { return Mob.createMobAttributes().add(Attributes.MAX_HEALTH,60).add(Attributes.MOVEMENT_SPEED,.29).add(Attributes.FOLLOW_RANGE,28).add(Attributes.KNOCKBACK_RESISTANCE,1).add(Attributes.ATTACK_DAMAGE,2); }
     @Override protected void registerGoals() { goalSelector.addGoal(0,new FloatGoal(this)); }
     @Override protected PathNavigation createNavigation(Level l) { return new LargeNavigation(this,l); }
     @Override protected void defineSynchedData() {
@@ -76,7 +78,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     public int gagTarget() {return entityData.get(GAG_TARGET);}
     public void gagTarget(int id) {entityData.set(GAG_TARGET,id);}
     public long now() { return getServer()!=null?getServer().overworld().getGameTime():level().getGameTime(); }
-    public boolean canAmbient() {return !isVehicle()&&onGround()&&(act()==Act.NONE||tickCount>=actEnd);}
+    public boolean canAmbient() {return downed<=0&&!isVehicle()&&onGround()&&(act()==Act.NONE||tickCount>=actEnd);}
     public void voice(String sound,float volume) {
         if(level().isClientSide||voiceCooldown>0)return;
         var ev=ForgeRegistries.SOUND_EVENTS.getValue(HexSadaharu.id(sound));
@@ -87,8 +89,16 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         super.tick();fallDistance=0;
         if(level().isClientSide)return;
         if(voiceCooldown>0)voiceCooldown--;
-        if(getHealth()!=getMaxHealth()||!Float.isFinite(getHealth()))super.setHealth(getMaxHealth());
+        if(!Float.isFinite(getHealth())||getHealth()>getMaxHealth())super.setHealth(getMaxHealth());
         clearFire();setAirSupply(getMaxAirSupply());setTicksFrozen(0);
+        if(downed>0) {
+            getNavigation().stop();setDeltaMovement(Vec3.ZERO);
+            if(tickCount%100==0&&getServer()!=null)CompanionData.get(getServer()).capture(this);
+            if(--downed<=0)recover();
+            return;
+        }
+        // He mends himself slowly while he is fed; kibble is the quick way.
+        if(getHealth()<getMaxHealth()&&hurtTime==0&&hunger()>200&&tickCount%40==0)heal(1);
         if(tickCount%100==0) {CompanionData.get(getServer()).capture(this);memories.expire(now());}
         if(++hungerClock>=120) {hungerClock=0;setHunger(hunger()-1);} // 100 minutes from full to empty.
         if(--poopClock<=0&&canAmbient()&&hunger()>250) {setAct(Act.POOP);poopClock=24000+random.nextInt(24000);}
@@ -130,7 +140,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         }
         if(held.is(HexSadaharu.KIBBLE.get())) {
             if(!level().isClientSide) {
-                if(!p.getAbilities().instabuild)held.shrink(1);setHunger(hunger()+350);setAct(Act.EAT);setMood(Mood.EXCITED);
+                if(!p.getAbilities().instabuild)held.shrink(1);setHunger(hunger()+350);heal(8);setAct(Act.EAT);setMood(Mood.EXCITED);
                 memories.remember("fed",now(),12000);memories.remember("familiar:"+p.getUUID(),now(),168000);voice("eat",.6F);
                 ((ServerLevel)level()).sendParticles(ParticleTypes.HEART,getX(),getY()+2,getZ(),3,.5,.3,.5,.02);
             }
@@ -148,16 +158,16 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     }
     /** Sends him off on foot; Personality slips him home once nobody is watching. */
     public boolean sendHome() {
-        if(home==null)return false;
+        if(home==null||downed>0)return false;
         ejectPassengers();getNavigation().stop();
         homebound=600;setAct(Act.NONE);setMood(Mood.RETURNING_HOME);voice("whine",.4F);following=false;
         if(getServer()!=null)CompanionData.get(getServer()).capture(this);
         return true;
     }
     public String homeLabel() {return home==null?"No home set":home.getX()+", "+home.getY()+", "+home.getZ()+" | "+homeDimension.location();}
-    public boolean mount(Player p) {if(!ownedBy(p)||isVehicle())return false;getNavigation().stop();setAct(Act.MOUNT);setMood(Mood.EXCITED);return p.startRiding(this);}
+    public boolean mount(Player p) {if(!ownedBy(p)||isVehicle()||downed>0)return false;getNavigation().stop();setAct(Act.MOUNT);setMood(Mood.EXCITED);return p.startRiding(this);}
     @Override public LivingEntity getControllingPassenger() {return getFirstPassenger() instanceof Player p&&ownedBy(p)?p:null;}
-    @Override protected boolean canAddPassenger(Entity e) {return e instanceof Player p&&ownedBy(p)&&getPassengers().isEmpty();}
+    @Override protected boolean canAddPassenger(Entity e) {return downed<=0&&e instanceof Player p&&ownedBy(p)&&getPassengers().isEmpty();}
     @Override public double getPassengersRidingOffset() {return 1.50+Math.sin(tickCount*.45)*Math.min(.055,rideSpeed*.04);}
     @Override protected void positionRider(Entity rider,Entity.MoveFunction move) {
         if(!hasPassenger(rider))return;
@@ -197,13 +207,53 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         if(!level().isClientSide&&tickCount%5==0) {var sound=ForgeRegistries.SOUND_EVENTS.getValue(HexSadaharu.id("step"));if(sound!=null)level().playSound(null,p,sound,SoundSource.NEUTRAL,isVehicle()?.4F:.23F,.8F+random.nextFloat()*.15F);}
     }
     @Override public boolean hurt(DamageSource source,float amount) {
-        if(!level().isClientSide&&source.getEntity() instanceof LivingEntity l)personality.threat(l);
-        return false;
+        if(level().isClientSide||isInvulnerableTo(source))return false;
+        if(source.getEntity() instanceof LivingEntity l)personality.threat(l);
+        if(!(amount>=getHealth()))return super.hurt(source,amount);
+        // The blow that would kill him puts him down instead, so health never reaches zero
+        // and vanilla's death sequence — which would remove the one reserved entity — never starts.
+        hurtTime=hurtDuration=10;level().broadcastEntityEvent(this,(byte)2);
+        collapse();
+        return true;
     }
-    @Override public boolean isInvulnerableTo(DamageSource d) {return true;}
-    @Override public void setHealth(float h) {super.setHealth(Float.isFinite(h)&&h>0?Math.max(h,getMaxHealth()):getMaxHealth());}
-    @Override public void die(DamageSource d) {super.setHealth(getMaxHealth());deathTime=0;}
-    @Override public void kill() {if(!level().isClientSide)rescue();}
+    @Override public boolean isInvulnerableTo(DamageSource d) {return downed>0||super.isInvulnerableTo(d);}
+    @Override public void setHealth(float h) {super.setHealth(Float.isFinite(h)?h:getMaxHealth());}
+    @Override public void die(DamageSource d) {if(level().isClientSide)super.die(d);else collapse();}
+    @Override public void kill() {if(!level().isClientSide)collapse();}
+    /** Knocked down where he stood: invulnerable, immobile, and on his way home. */
+    private void collapse() {
+        if(downed>0||level().isClientSide)return;
+        downed=RECOVERY;super.setHealth(1);deathTime=0;
+        ejectPassengers();getNavigation().stop();setDeltaMovement(Vec3.ZERO);
+        prepareTicks=0;homebound=0;gagTarget(-1);
+        setAct(Act.DOWNED);setMood(Mood.SCARED);voiceCooldown=0;voice("whine",1F);
+        if(level() instanceof ServerLevel l)l.sendParticles(ParticleTypes.DAMAGE_INDICATOR,getX(),getY()+1.4,getZ(),18,.8,.6,.8,.02);
+        ServerPlayer o=owner();
+        if(o!=null)o.displayClientMessage(Component.literal("Sadaharu has been knocked down."),false);
+        if(getServer()!=null)CompanionData.get(getServer()).capture(this);
+    }
+    /** Home if he has one, otherwise beside his owner, otherwise world spawn. */
+    void recover() {
+        downed=0;super.setHealth(getMaxHealth());setHunger(Math.min(hunger(),380));
+        var server=getServer();
+        ServerLevel destination=null;Vec3 landing=null;
+        if(home!=null&&server!=null) {
+            destination=server.getLevel(homeDimension);
+            if(destination!=null)landing=SafeTravel.landing(destination,home,this);
+        }
+        ServerPlayer o=owner();
+        if(landing==null&&o!=null&&o.level() instanceof ServerLevel l) {
+            destination=l;landing=SafeTravel.landing(l,o.blockPosition(),this);
+        }
+        if(landing==null&&server!=null) {
+            destination=server.overworld();landing=SafeTravel.landing(destination,destination.getSharedSpawnPos(),this);
+        }
+        if(o!=null)o.displayClientMessage(Component.literal(landing==null?"Sadaharu picks himself up where he fell.":home!=null?"Sadaharu has picked himself up at home.":"Sadaharu has picked himself up beside you."),false);
+        // A cross-dimensional recovery rebuilds the entity, so nothing may touch this one afterwards.
+        if(landing!=null&&destination!=null&&SafeTravel.teleport(this,destination,landing))return;
+        setAct(Act.WAKE);setMood(Mood.CALM);
+        if(server!=null)CompanionData.get(server).capture(this);
+    }
     @Override public boolean causeFallDamage(float distance,float mult,DamageSource d) {return false;}
     @Override public boolean canBeAffected(MobEffectInstance effect) {return false;}
     @Override public boolean removeWhenFarAway(double d) {return false;}
@@ -217,7 +267,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     @Override public void addAdditionalSaveData(CompoundTag n) {super.addAdditionalSaveData(n);writeCompanion(n);}
     public void writeCompanion(CompoundTag n) {
         if(ownerId()!=null)n.putUUID("Owner",ownerId());
-        if(home!=null)n.putLong("Home",home.asLong());n.putString("HomeDimension",homeDimension.location().toString());n.putBoolean("AutomaticHome",automaticHome);n.putBoolean("Following",following);
+        if(home!=null)n.putLong("Home",home.asLong());n.putString("HomeDimension",homeDimension.location().toString());n.putBoolean("AutomaticHome",automaticHome);n.putBoolean("Following",following);n.putInt("Downed",downed);
         n.putInt("Hunger",hunger());n.putInt("HungerClock",hungerClock);n.putInt("Bones",bones);n.putInt("BonesRequired",bonesRequired);n.putInt("PoopClock",poopClock);
         n.putString("Mood",mood().name());n.putString("Act",act().name());n.putInt("RemainingAct",Math.max(0,actEnd-tickCount));n.put("BehaviorMemory",memories.save());n.putLong("NextIntervention",nextIntervention);n.putInt("Homebound",homebound);
         if(safePosition!=null)n.putLong("SafePosition",safePosition.asLong());
@@ -230,7 +280,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         automaticHome=!n.contains("AutomaticHome")||n.getBoolean("AutomaticHome");following=!n.contains("Following")||n.getBoolean("Following");setHunger(n.contains("Hunger")?n.getInt("Hunger"):1000);
         hungerClock=n.getInt("HungerClock");bones=n.getInt("Bones");bonesRequired=Math.max(2,Math.min(6,n.getInt("BonesRequired")));poopClock=n.contains("PoopClock")?n.getInt("PoopClock"):24000;
         try {setMood(Mood.valueOf(n.getString("Mood")));setAct(Act.valueOf(n.getString("Act")));}catch(IllegalArgumentException ignored){}
-        actEnd=tickCount+Math.min(24000,n.getInt("RemainingAct"));memories.load(n.getCompound("BehaviorMemory"));nextIntervention=n.getLong("NextIntervention");homebound=Math.max(0,Math.min(600,n.getInt("Homebound")));
+        actEnd=tickCount+Math.min(24000,n.getInt("RemainingAct"));memories.load(n.getCompound("BehaviorMemory"));nextIntervention=n.getLong("NextIntervention");homebound=Math.max(0,Math.min(600,n.getInt("Homebound")));downed=Math.max(0,Math.min(RECOVERY,n.getInt("Downed")));
         if(n.contains("SafePosition"))safePosition=BlockPos.of(n.getLong("SafePosition"));setPersistenceRequired();
     }
 }

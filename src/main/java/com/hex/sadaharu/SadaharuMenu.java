@@ -11,9 +11,9 @@ public final class SadaharuMenu extends AbstractContainerMenu {
     public SadaharuMenu(int id,Inventory inv,FriendlyByteBuf b){this(id,inv,inv.player.level().getEntity(b.readInt()) instanceof Sadaharu d?d:null);homeText=b.readUtf();}
     public SadaharuMenu(int id,Inventory inv,@Nullable Sadaharu dog) {
         super(HexSadaharu.MENU.get(),id);this.dog=dog;homeText=dog==null?"No home set":dog.homeLabel();
-        data=dog==null||inv.player.level().isClientSide?new SimpleContainerData(7):new ContainerData(){
-            public int get(int i){return switch(i){case 0->dog.hunger();case 1->dog.mood().ordinal();case 2->dog.automaticHome?1:0;case 3->dog.home==null?0:dog.home.getX();case 4->dog.home==null?Integer.MIN_VALUE:dog.home.getY();case 5->dog.home==null?0:dog.home.getZ();case 6->dog.following?1:0;default->0;};}
-            public void set(int i,int v){}public int getCount(){return 7;}
+        data=dog==null||inv.player.level().isClientSide?new SimpleContainerData(8):new ContainerData(){
+            public int get(int i){return switch(i){case 0->dog.hunger();case 1->dog.mood().ordinal();case 2->dog.automaticHome?1:0;case 3->dog.home==null?0:dog.home.getX();case 4->dog.home==null?Integer.MIN_VALUE:dog.home.getY();case 5->dog.home==null?0:dog.home.getZ();case 6->dog.following?1:0;case 7->(int)Math.ceil(dog.getHealth());default->0;};}
+            public void set(int i,int v){}public int getCount(){return 8;}
         };
         addDataSlots(data);
     }
@@ -22,6 +22,7 @@ public final class SadaharuMenu extends AbstractContainerMenu {
     public boolean automatic(){return data.get(2)==1;}
     public boolean hasHome(){return data.get(4)!=Integer.MIN_VALUE;}
     public boolean following(){return data.get(6)==1;}
+    public int health(){return data.get(7);}
     @Override public boolean stillValid(Player p){return dog!=null&&dog.isAlive()&&dog.ownedBy(p)&&p.distanceToSqr(dog)<100;}
     @Override public ItemStack quickMoveStack(Player p,int slot){return ItemStack.EMPTY;}
     @Override public boolean clickMenuButton(Player p,int button) {
