@@ -8,12 +8,13 @@ A standalone **Minecraft Forge 1.20.1 / Java 17** companion mod. No additional g
 * Offer **2–6 bones** to tame him. The random threshold is selected once and survives reloads.
 * Craft four **Kibble** from one meat, one fish and wheat, shapeless. Optional Forge tags accept compatible modded ingredients.
 * Owner right-click opens a compact home/settings screen. **Shift + right-click** or **Ride Sadaharu** mounts him.
+* **Send him home**, on that screen once a home is set, dismisses him politely: he walks off on his own feet and only crosses over once he is out of your sight, then keeps to the area around home for about ten minutes.
 * Ride with normal movement controls. Sprint to accelerate further; charge/release the normal mount jump control for a major leap.
 * **H — Call Dog**, remappable in Controls, is the only added key. Only the owner can call him.
 
 ## Design
 
-The model is original cuboid geometry rather than a vanilla wolf model: a broad sculpted head, raised brown eyebrows, glossy eyes, articulated upper/lower jaw, tongue and teeth, heavy paws, red collar and four-part curled tail. The native model controller layers breathing, blinking, ear/tail motion and gait with 42 timed gestures and smooth resting transitions.
+The model is original cuboid geometry rather than a vanilla wolf model: 69 bones and 315 cuboids built as stacked superellipse layers with chamfered corners, so the silhouette curves instead of stepping. A round head with low soft brows set close over round eyes, a short muzzle whose jaw closes flush with no teeth and nothing dark exposed, working eyelids, a collar band laid on an ellipse around the throat, a layered chest ruff, tapered legs and a four-part curled tail. The native model controller layers breathing, a nose twitch, a weight shift, a drifting idle gaze, ear and tail motion and gait under 49 timed gestures with smooth resting transitions. Blinking rotates the eyelids shut about every four seconds, sometimes twice.
 
 Sadaharu makes server-side decisions using bounded awareness caches and persisted memory. Protection is a single maximum-2-health hit followed by retreat and a 45-second cooldown. Hunger changes behavior, never health; a full meter takes roughly 100 minutes to empty. Home return is tempered by distance, danger and travel with the owner. Ordinary behavior never breaks blocks.
 
@@ -21,7 +22,9 @@ The overworld SavedData record reserves his UUID even while unloaded. Calling ti
 
 ## Build and checks
 
-**Actions → Build and verify Sadaharu** compiles and packages the JAR/source ZIP, validates resources, and runs Forge GameTests. Download the artifact from a successful run. No compilation was performed in the authoring workspace.
+**Actions → Build and verify Sadaharu** compiles and packages the JAR/source ZIP, validates resources, runs Forge GameTests and renders the model through the real Minecraft client. Download the artifact from a successful run. No compilation was performed in the authoring workspace.
+
+`tools/verify.py` also reconstructs the rig's rest pose and asserts that every mouth-interior and eyelid cuboid is fully enclosed by fur. A muzzle that stops closing, or a lid that pokes through the skull, fails the build rather than waiting to be noticed in a screenshot.
 
 `tools/make_assets.py` authors the rig and item pixel art; `tools/render_model.py` produces a depth-rendered contact sheet from the exact rig. These optional tools need Python, Pillow and NumPy. They do not compile Java.
 
