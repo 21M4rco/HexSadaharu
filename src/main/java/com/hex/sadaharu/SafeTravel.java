@@ -26,6 +26,23 @@ public final class SafeTravel {
         }
         return null;
     }
+    /**
+     * Calls are absolute recalls. Prefer a safe nearby landing, widen the search if the
+     * player is in awkward terrain, and finally use the player's feet rather than refuse.
+     */
+    public static Vec3 recallLanding(ServerLevel level,BlockPos near,Entity dog) {
+        Vec3 close=landing(level,near,dog);if(close!=null)return close;
+        for(int r=12;r<=32;r+=4) for(int a=0;a<24;a++) {
+            double angle=a*Math.PI/12;
+            int x=near.getX()+(int)Math.round(Math.cos(angle)*r),z=near.getZ()+(int)Math.round(Math.sin(angle)*r);
+            if(!level.getWorldBorder().isWithinBounds(new BlockPos(x,near.getY(),z)))continue;
+            int surface=level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,x,z);
+            Vec3 v=valid(level,new BlockPos(x,surface,z),dog);if(v!=null)return v;
+            for(int dy=8;dy>=-8;dy--) {v=valid(level,new BlockPos(x,near.getY()+dy,z),dog);if(v!=null)return v;}
+        }
+        int y=Math.max(level.getMinBuildHeight()+1,Math.min(level.getMaxBuildHeight()-4,near.getY()));
+        return Vec3.atBottomCenterOf(new BlockPos(near.getX(),y,near.getZ()));
+    }
     @Nullable private static Vec3 valid(ServerLevel l,BlockPos p,Entity dog) {
         if(p.getY()<l.getMinBuildHeight()+1||p.getY()>l.getMaxBuildHeight()-4)return null;
         if(!l.getBlockState(p.below()).isSolid()||!l.getFluidState(p).isEmpty()||l.getBlockState(p.below()).is(Blocks.MAGMA_BLOCK))return null;

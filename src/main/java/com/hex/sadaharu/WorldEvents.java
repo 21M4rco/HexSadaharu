@@ -65,20 +65,38 @@ public final class WorldEvents {
         CompanionData data=CompanionData.get(player.server);
         if(data.dog==null||!player.getUUID().equals(data.owner)){player.displayClientMessage(Component.literal("Only Sadaharu’s owner can call him."),true);return;}
         Sadaharu dog=data.loaded(player.server);
-        if(dog!=null&&dog.downed>0){player.displayClientMessage(Component.literal("Sadaharu is down; he will pick himself up shortly."),true);return;}
         if(dog!=null){arrive(dog,player);return;}
-        ServerLevel from=player.server.getLevel(data.dimension);
-        if(from==null){player.displayClientMessage(Component.literal("Sadaharu’s dimension is unavailable."),true);return;}
-        if(calls.containsKey(player.getUUID()))return;
-        ChunkPos chunk=new ChunkPos(data.position);
-        from.getChunkSource().addRegionTicket(CALL_TICKET,chunk,2,data.dog);
-        from.getChunk(chunk.x,chunk.z); // Request existing chunk; entity loading completes asynchronously on following ticks.
-        calls.put(player.getUUID(),new Call(player.getUUID(),data.dog,from,chunk,0));
+
+        // This key is an absolute recall. Never wait for the old chunk or old dimension
+        // to load: recreate the one reserved identity from its saved companion state here.
+        // If the stale disk copy later loads, the uniqueness join gate rejects it.
+        if(!materializeRecall(data,player))player.displayClientMessage(Component.literal("Sadaharu could not be recalled."),true);
+    }
+    private static boolean materializeRecall(CompanionData data,ServerPlayer player) {
+        Sadaharu dog=HexSadaharu.DOG.get().create(player.serverLevel());
+        if(dog==null||data.dog==null)return false;
+        dog.setUUID(data.dog);
+        if(!data.memory.isEmpty())dog.readAdditionalSaveData(data.memory.copy());
+        if(dog.ownerId()==null&&data.owner!=null)dog.setOwner(data.owner);
+        Vec3 p=SafeTravel.recallLanding(player.serverLevel(),player.blockPosition(),dog);
+        dog.moveTo(p.x,p.y,p.z,player.getYRot(),0);
+        dog.setDeltaMovement(Vec3.ZERO);dog.fallDistance=0;
+        if(dog.downed>0)dog.setAct(Act.DOWNED);else {dog.setAct(Act.WAKE);dog.setMood(Mood.EXCITED);}
+        if(!player.serverLevel().addFreshEntity(dog))return false;
+        data.capture(dog);
+        if(dog.downed<=0)dog.voice("excited",.7F);
+        return true;
     }
     private static void arrive(Sadaharu dog,ServerPlayer player) {
-        Vec3 p=SafeTravel.landing(player.serverLevel(),player.blockPosition(),dog);
-        if(p==null){player.displayClientMessage(Component.literal("Move to a wider clear space so Sadaharu can arrive safely."),true);return;}
-        if(!SafeTravel.teleport(dog,player.serverLevel(),p))player.displayClientMessage(Component.literal("Sadaharu could not cross dimensions here."),true);
+        Vec3 p=SafeTravel.recallLanding(player.serverLevel(),player.blockPosition(),dog);
+        if(!SafeTravel.teleport(dog,player.serverLevel(),p)) {
+            CompanionData data=CompanionData.get(player.server);
+            if(!dog.isRemoved())dog.rejectDuplicate();
+            if(!materializeRecall(data,player))player.displayClientMessage(Component.literal("Sadaharu could not be recalled."),true);
+            return;
+        }
+        Sadaharu recalled=CompanionData.get(player.server).loaded(player.server);
+        if(recalled!=null&&recalled.downed>0)recalled.setAct(Act.DOWNED);
     }
     @SubscribeEvent public void tick(TickEvent.ServerTickEvent e) {
         if(e.phase!=TickEvent.Phase.END)return;
