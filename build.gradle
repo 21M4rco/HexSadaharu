@@ -10,7 +10,13 @@ minecraft {
     accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
     mappings channel: 'official', version: '1.20.1'
     runs {
-        client { property 'hexsadaharu.review', project.hasProperty('visualReview') ? 'true' : 'false'; args '--width', '1500', '--height', '1000'; workingDirectory project.file('run'); mods { hexsadaharu { source sourceSets.main } } }
+        client {
+            property 'hexsadaharu.review', project.hasProperty('visualReview') ? 'true' : 'false'
+            // FML's early splash negotiates its own GL context and wedges on headless software rasterisers.
+            property 'fml.earlyprogresswindow', 'false'
+            args '--width', '1500', '--height', '1000'
+            workingDirectory project.file('run'); mods { hexsadaharu { source sourceSets.main } }
+        }
         server { workingDirectory project.file('run'); args '--nogui'; mods { hexsadaharu { source sourceSets.main } } }
         gameTestServer {
             workingDirectory project.file('run-gametest')

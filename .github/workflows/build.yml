@@ -22,9 +22,13 @@ jobs:
       - name: Server integration tests
         run: bash gradlew runGameTestServer --stacktrace
       - name: Native client model render
-        run: xvfb-run -a bash gradlew runClient -PvisualReview --stacktrace
+        # Hard bound: a wedged GL context must fail the step, never consume the job timeout.
+        run: xvfb-run -a timeout -k 30 540 bash gradlew runClient -PvisualReview --stacktrace
         env:
-          LIBGL_ALWAYS_SOFTWARE: true
+          LIBGL_ALWAYS_SOFTWARE: "true"
+          GALLIUM_DRIVER: llvmpipe
+          MESA_GL_VERSION_OVERRIDE: "4.6"
+          MESA_GLSL_VERSION_OVERRIDE: "460"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
