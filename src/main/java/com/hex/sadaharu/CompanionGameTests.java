@@ -39,12 +39,16 @@ public final class CompanionGameTests {
         dog.home=p;dog.homeDimension=level.dimension();dog.recover();
         h.assertTrue(dog.downed==0&&dog.getHealth()==dog.getMaxHealth(),"Recovery restores him to full health");
         h.assertTrue(dog.level()==level&&dog.blockPosition().distSqr(p)<400,"Recovery puts him at his home");
+        // Picking himself up deliberately leaves him hungry, so restore the satiety the
+        // persistence check below is about to assert.
+        dog.setHunger(432);
         Sadaharu duplicate=HexSadaharu.DOG.get().create(level);duplicate.moveTo(p.getX()+4,p.getY(),p.getZ(),0,0);
         h.assertTrue(!level.addFreshEntity(duplicate),"A second UUID must be rejected");
         dog.following=false;
         CompoundTag saved=new CompoundTag();dog.saveWithoutId(saved);
         Sadaharu restored=HexSadaharu.DOG.get().create(level);restored.load(saved);
-        h.assertTrue(owner.equals(restored.ownerId())&&restored.hunger()==432&&p.equals(restored.home),"Ownership, satiety and home round trip");
+        h.assertTrue(owner.equals(restored.ownerId())&&restored.hunger()==432&&p.equals(restored.home),
+            "Ownership, satiety and home round trip (owner="+restored.ownerId()+", satiety="+restored.hunger()+", home="+restored.home+")");
         h.assertTrue(!restored.following,"The follow instruction round trips");
         h.assertTrue(restored.memories.remembers("test",dog.now()),"Behavior memory round trips");
         restored.setRemoved(Entity.RemovalReason.UNLOADED_TO_CHUNK);
