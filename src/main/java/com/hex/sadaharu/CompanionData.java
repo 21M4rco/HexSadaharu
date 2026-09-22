@@ -15,6 +15,8 @@ import net.minecraft.world.level.saveddata.SavedData;
 /** The overworld owns the one-per-save identity, including while its entity is unloaded. */
 public final class CompanionData extends SavedData {
     @Nullable public UUID dog, owner;
+    /** Transient handle on the entity currently in memory; never serialized. */
+    @Nullable private Sadaharu live;
     public ResourceKey<Level> dimension=Level.OVERWORLD;
     public BlockPos position=BlockPos.ZERO;
     public CompoundTag memory=new CompoundTag();
@@ -31,12 +33,23 @@ public final class CompanionData extends SavedData {
     }
     public void capture(Sadaharu s) {
         if(dog!=null&&!dog.equals(s.getUUID()))return;
+        live=s;
         dog=s.getUUID();owner=s.ownerId();dimension=s.level().dimension();position=s.blockPosition();
         CompoundTag n=new CompoundTag();s.writeCompanion(n);memory=n;setDirty();
     }
+    /**
+     * A level only answers {@link ServerLevel#getEntity(UUID)} once the owning chunk has been promoted,
+     * and that promotion is queued onto the server thread rather than applied inline. Right after a
+     * dimension transfer the entity therefore exists but is not yet indexed, so the live handle is
+     * consulted first and the per-level scan is only the fallback.
+     */
     @Nullable public Sadaharu loaded(MinecraftServer server) {
         if(dog==null)return null;
-        for(ServerLevel l:server.getAllLevels())if(l.getEntity(dog) instanceof Sadaharu s&&!s.isRemoved())return s;
+        if(live!=null&&!live.isRemoved()&&dog.equals(live.getUUID())&&live.level() instanceof ServerLevel l&&l.getServer()==server)return live;
+        live=null;
+        for(ServerLevel l:server.getAllLevels())if(l.getEntity(dog) instanceof Sadaharu s&&!s.isRemoved()){live=s;return s;}
         return null;
     }
+    /** Forgets both the reserved identity and the live handle; used when a duplicate is rejected. */
+    public void release() {dog=null;owner=null;live=null;setDirty();}
 }

@@ -31,7 +31,7 @@ public final class WorldEvents {
             dog.moveTo(pos.x,pos.y,pos.z,source.getRotation().y,0);
             // Reserve before addFreshEntity; the join gate sees this same identity.
             data.capture(dog);
-            if(!source.getLevel().addFreshEntity(dog)){data.dog=null;data.setDirty();source.sendFailure(Component.literal("Could not add Sadaharu."));return 0;}
+            if(!source.getLevel().addFreshEntity(dog)){data.release();source.sendFailure(Component.literal("Could not add Sadaharu."));return 0;}
             source.sendSuccess(()->Component.literal("Sadaharu has arrived. Offer him bones to earn his trust."),true);return 1;
         })));
     }

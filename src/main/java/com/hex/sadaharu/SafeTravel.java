@@ -3,6 +3,8 @@ package com.hex.sadaharu;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -36,6 +38,9 @@ public final class SafeTravel {
     public static boolean teleport(Sadaharu dog, ServerLevel target, Vec3 p) {
         dog.ejectPassengers(); dog.getNavigation().stop();dog.setAct(Act.WAKE);dog.setMood(Mood.EXCITED);
         if(dog.level()!=target) {
+            // Hold the arrival chunk so the destination promotes it instead of dropping him into limbo.
+            ChunkPos arrival=new ChunkPos(BlockPos.containing(p));
+            target.getChunkSource().addRegionTicket(TicketType.POST_TELEPORT,arrival,1,dog.getId());
             transfers.put(dog.getUUID(),target);
             Entity result;
             try { result=dog.changeDimension(target,new net.minecraftforge.common.util.ITeleporter() {
@@ -46,7 +51,9 @@ public final class SafeTravel {
                     Entity moved=reposition.apply(false);moved.moveTo(p.x,p.y,p.z,yaw,0);return moved;
                 }
             }); } finally {transfers.remove(dog.getUUID());}
-            if(!(result instanceof Sadaharu s))return false;dog=s;
+            // changeDimension hands back the rebuilt entity even when the join was refused.
+            if(!(result instanceof Sadaharu s)||s.isRemoved()||s.level()!=target)return false;
+            dog=s;
         } else dog.teleportTo(p.x,p.y,p.z);
         dog.setDeltaMovement(Vec3.ZERO);dog.fallDistance=0;dog.getNavigation().stop();dog.setAct(Act.WAKE);dog.setMood(Mood.EXCITED);
         CompanionData.get(target.getServer()).capture(dog);dog.voice("excited",.7F);return true;
