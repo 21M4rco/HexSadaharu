@@ -126,7 +126,7 @@ assert 'isInvulnerableTo(DamageSource d) {return true;}' not in dogsrc,'he is in
 assert 'setHealth(float h) {super.setHealth(Float.isFinite(h)&&h>0?Math.max(h,getMaxHealth())' not in dogsrc,'setHealth still forces him back to full'
 assert 'getHealth()!=getMaxHealth()||' not in dogsrc,'the tick loop still heals him back to full every tick'
 assert re.search(r'if\(!\(amount>=getHealth\(\)\)\)return super\.hurt',dogsrc),'damage no longer reaches vanilla, so he cannot be hurt'
-for needed in ('private void collapse()','void recover()','downed=RECOVERY','super.setHealth(getMaxHealth())'):
+for needed in ('void collapse()','void recover()','downed=RECOVERY','super.setHealth(getMaxHealth())'):
  assert needed in dogsrc,'the knock-down cycle is missing: '+needed
 # Recovery has to try home first, then the owner, and never leave him at zero health.
 body=dogsrc[dogsrc.index('void recover()'):]
@@ -134,6 +134,19 @@ for step in ('SafeTravel.landing(destination,home,this)','o.blockPosition()'):
  assert step in body,'recovery never tries: '+step
 assert body.index('SafeTravel.landing(destination,home,this)')<body.index('o.blockPosition()'),'recovery must prefer his home over his owner'
 assert 'getSharedSpawnPos()' in dogsrc[dogsrc.index('void recover()'):],'recovery has no fallback when he has neither home nor owner'
+# Mortality is not only the entity class. Forge's event bus cancelled every attack,
+# every point of damage and his death independently of it, which is what actually kept
+# him immortal after the entity guards came out.
+events=(r/'src/main/java/com/hex/sadaharu/WorldEvents.java').read_text()
+def handler(signature):
+ for line in events.splitlines():
+  if signature in line:return line
+ raise AssertionError('WorldEvents has no handler for '+signature)
+assert 'setCanceled(true)' not in handler('LivingAttackEvent e)'),'the event bus still cancels every attack on him'
+assert 'setCanceled(true)' not in handler('LivingDamageEvent e)'),'the event bus still cancels all damage to him'
+assert 'setHealth(dog.getMaxHealth())' not in handler('LivingDeathEvent e)'),'death still heals him to full instead of putting him down'
+assert 'collapse()' in handler('LivingDeathEvent e)'),'a death that slips past hurt() must put him down'
+assert 'e.setAmount(Math.min(2,Math.max(0,e.getAmount())))' in events,'the two-health cap on the damage he deals is gone'
 assert 'setAct(Act.DOWNED)' in dogsrc,'nothing ever puts him down'
 for guard in ('isVehicle()||downed>0','downed<=0&&e instanceof Player','downed<=0&&!isVehicle()','home==null||downed>0'):
  assert guard in dogsrc,'a downed Sadaharu is still reachable: '+guard

@@ -221,7 +221,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     @Override public void die(DamageSource d) {if(level().isClientSide)super.die(d);else collapse();}
     @Override public void kill() {if(!level().isClientSide)collapse();}
     /** Knocked down where he stood: invulnerable, immobile, and on his way home. */
-    private void collapse() {
+    void collapse() {
         if(downed>0||level().isClientSide)return;
         downed=RECOVERY;super.setHealth(1);deathTime=0;
         ejectPassengers();getNavigation().stop();setDeltaMovement(Vec3.ZERO);

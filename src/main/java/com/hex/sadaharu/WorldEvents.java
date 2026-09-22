@@ -42,9 +42,9 @@ public final class WorldEvents {
         if(data.dog!=null&&!data.dog.equals(dog.getUUID())||existing!=null&&existing!=dog&&!SafeTravel.transferring(dog.getUUID(),(ServerLevel)e.getLevel())) {e.setCanceled(true);dog.rejectDuplicate();return;}
         data.capture(dog);
     }
-    @SubscribeEvent(priority=EventPriority.HIGHEST) public void attack(LivingAttackEvent e) {if(e.getEntity() instanceof Sadaharu){e.setCanceled(true);if(e.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity l)((Sadaharu)e.getEntity()).personality.threat(l);}}
-    @SubscribeEvent(priority=EventPriority.LOWEST) public void damage(LivingDamageEvent e) {if(e.getEntity() instanceof Sadaharu)e.setCanceled(true);else if(e.getSource().getEntity() instanceof Sadaharu)e.setAmount(Math.min(2,Math.max(0,e.getAmount())));}
-    @SubscribeEvent(priority=EventPriority.HIGHEST) public void death(LivingDeathEvent e) {if(e.getEntity() instanceof Sadaharu dog){e.setCanceled(true);dog.setHealth(dog.getMaxHealth());}}
+    @SubscribeEvent(priority=EventPriority.HIGHEST) public void attack(LivingAttackEvent e) {if(e.getEntity() instanceof Sadaharu dog&&e.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity l)dog.personality.threat(l);}
+    @SubscribeEvent(priority=EventPriority.LOWEST) public void damage(LivingDamageEvent e) {if(!(e.getEntity() instanceof Sadaharu)&&e.getSource().getEntity() instanceof Sadaharu)e.setAmount(Math.min(2,Math.max(0,e.getAmount())));}
+    @SubscribeEvent(priority=EventPriority.HIGHEST) public void death(LivingDeathEvent e) {if(e.getEntity() instanceof Sadaharu dog){e.setCanceled(true);dog.collapse();}}
     @SubscribeEvent public void hurt(LivingHurtEvent e) {
         if(e.getEntity() instanceof ServerPlayer player&&e.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity attacker) {
             CompanionData data=CompanionData.get(player.server);Sadaharu dog=data.loaded(player.server);
