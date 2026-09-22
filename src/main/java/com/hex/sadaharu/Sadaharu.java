@@ -193,9 +193,9 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     /** Afloat with his feet off the bottom, so he is genuinely swimming rather than wading. */
     public boolean swimming() {return afloat()&&!onGround();}
     @Override public boolean canSprint() {return true;}
-    @Override public boolean canJump() {return isVehicle()&&onGround();}
+    @Override public boolean canJump() {return isVehicle()&&downed<=0&&getControllingPassenger()!=null;}
     @Override public void onPlayerJump(int charge) {jumpCharge=Math.max(.35F,Math.min(1,charge/90F));}
-    @Override public void handleStartJump(int charge) {if(canJump()){onPlayerJump(charge);prepareTicks=8;setAct(Act.PREPARE_LEAP);}}
+    @Override public void handleStartJump(int charge) {if(canJump()&&onGround()){onPlayerJump(charge);prepareTicks=8;setAct(Act.PREPARE_LEAP);}}
     @Override public void handleStopJump() {}
     private void launch() {
         if(!isVehicle()||!onGround())return;

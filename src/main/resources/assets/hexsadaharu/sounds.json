@@ -5,8 +5,8 @@
       {
         "name": "hexsadaharu:bark",
         "type": "file",
-        "volume": 1.0,
-        "pitch": 1.0
+        "volume": 1,
+        "pitch": 1
       }
     ]
   },
@@ -16,7 +16,7 @@
       {
         "name": "hexsadaharu:bark",
         "type": "file",
-        "volume": 1.0,
+        "volume": 1,
         "pitch": 1.16
       },
       {
@@ -33,7 +33,7 @@
       {
         "name": "hexsadaharu:bark",
         "type": "file",
-        "volume": 1.0,
+        "volume": 1,
         "pitch": 0.72
       }
     ]
@@ -114,10 +114,10 @@
     "subtitle": "subtitles.hexsadaharu.land",
     "sounds": [
       {
-        "name": "minecraft:entity.horse.land",
-        "type": "event",
-        "volume": 1,
-        "pitch": 0.9
+        "name": "hexsadaharu:paw_land",
+        "type": "file",
+        "volume": 0.85,
+        "pitch": 1
       }
     ]
   },
@@ -125,16 +125,22 @@
     "subtitle": "subtitles.hexsadaharu.step",
     "sounds": [
       {
-        "name": "minecraft:entity.wolf.step",
-        "type": "event",
-        "volume": 1,
-        "pitch": 0.9
+        "name": "hexsadaharu:paw_1",
+        "type": "file",
+        "volume": 0.72,
+        "pitch": 1
       },
       {
-        "name": "minecraft:entity.horse.step",
-        "type": "event",
-        "volume": 1,
-        "pitch": 0.9
+        "name": "hexsadaharu:paw_2",
+        "type": "file",
+        "volume": 0.72,
+        "pitch": 1
+      },
+      {
+        "name": "hexsadaharu:paw_3",
+        "type": "file",
+        "volume": 0.72,
+        "pitch": 1
       }
     ]
   }
