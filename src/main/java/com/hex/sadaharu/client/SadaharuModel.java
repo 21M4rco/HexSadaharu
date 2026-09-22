@@ -82,13 +82,19 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
         for(String s:new String[]{"front_left","front_right"}){rot(s+"_leg",-1.38F*lie,0,0);rot(s+"_paw",1.3F*lie,0,0);}
         for(String s:new String[]{"rear_left","rear_right"}){rot(s+"_leg",1.2F*lie,0,0);rot(s+"_paw",-.8F*lie,0,0);}
         move("head",0,2.5F*sleep,-1*sleep);rot("neck",.17F*sleep,0,0);rot("head",.12F*sleep,-.13F*sleep,-.08F*sleep);
-        float blink=1-ease((sin(time*.047F)-.985F)*67);
-        float eyes=Math.max(.065F,blink*(1-sleep));part("eye_left").yScale=eyes;part("eye_right").yScale=eyes;
+        // resetPose does not restore scale, and only anger() touches the eyes now.
+        part("eye_left").yScale=1;part("eye_right").yScale=1;
+        // Always-on micro-life, independent of whatever gesture is playing.
+        if(sin(time*.026F+1.3F)>.94F)move("nose",0,sin(time*1.3F)*.16F,0);
+        rot("body",0,0,sin(time*.011F)*.014F);
+        rot("tail_0",0,sin(time*.019F)*.05F,0);
+        if(act==Act.NONE&&moving<.05F&&sit<.05F&&lie<.05F)rot("head",sin(time*.0075F)*.045F,sin(time*.013F)*.11F,sin(time*.0091F)*.04F);
+        if(dog.mood()==Mood.RETURNING_HOME){rot("tail_0",.22F,0,0);rot("ear_left",.1F,0,0);rot("ear_right",.1F,0,0);}
         float excited=(dog.mood()==Mood.EXCITED||dog.mood()==Mood.PLAYFUL||act==Act.WAG_EXCITED)?1:0;
         for(int i=0;i<4;i++)rot("tail_"+i, sin(time*.05F-i*.5F)*.04F,sin(time*(excited>.5F?.48F:.12F)-i*.5F)*(.12F+excited*.24F)*(1-sleep*.8F),0);
         if(sin(time*.032F)>.96F){rot("ear_left",sin(time*.9F)*.12F,0,.06F);}
         if(sin(time*.039F+2)>.975F){rot("ear_right",sin(time*1.1F)*.1F,0,-.07F);}
-        float jaw=0;
+        float jaw=0,squint=0;
         switch(act) {
             case LOOK -> rot("head",0,sin(age*.05F)*.45F*envelope,0);
             case TILT_LEFT -> rot("head",0,0,-.3F*envelope);
@@ -103,7 +109,7 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
             case SIDE -> {rot("body",0,0,.75F*envelope);move("body",2*envelope,0,0);rot("head",0,0,-.18F*envelope);}
             case SLEEP, SLEEP_TWITCH -> {if(sin(time*.017F)>.9F){rot("front_left_paw",sin(time*.9F)*.08F,0,0);rot("ear_right",0,0,sin(time*.65F)*.1F);}}
             case WAKE -> {rot("head",-.2F*envelope,0,0);rot("ear_left",0,0,.15F*envelope);rot("ear_right",0,0,-.15F*envelope);jaw=.3F*envelope;}
-            case YAWN -> {jaw=.95F*envelope;rot("head",-.35F*envelope,0,0);rot("tongue",-.4F*envelope,0,0);part("eye_left").yScale=.3F;part("eye_right").yScale=.3F;}
+            case YAWN -> {jaw=.95F*envelope;rot("head",-.35F*envelope,0,0);rot("tongue",-.4F*envelope,0,0);squint=.7F*envelope;}
             case LICK_NOSE -> {jaw=.13F*envelope;move("tongue",0,-1.2F*envelope,-5*envelope);rot("tongue",-1*envelope,0,0);}
             case LICK_PAW -> {rot("front_left_leg",-1.15F*envelope,0,0);rot("neck",.4F*envelope,0,-.17F*envelope);jaw=.25F*envelope;move("tongue",0,0,-(1+sin(age*.5F))*envelope);}
             case PAW -> rot("front_right_leg",(-.4F+sin(age*.28F)*.3F)*envelope,0,0);
@@ -130,6 +136,25 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
             case EAR_LEFT -> rot("ear_left",sin(age*.5F)*.22F*envelope,0,.12F*envelope);
             case EAR_RIGHT -> rot("ear_right",sin(age*.5F)*.22F*envelope,0,-.12F*envelope);
             case EAR_BOTH -> {rot("ear_left",sin(age*.5F)*.22F*envelope,0,.12F*envelope);rot("ear_right",sin(age*.5F)*.22F*envelope,0,-.12F*envelope);}
+            case EAR_FLICK -> {rot("ear_left",sin(age*1.4F)*.34F*envelope,0,.2F*envelope);rot("head",0,0,.05F*envelope);}
+            case HEAD_SHAKE -> {float s=sin(age*1.1F)*envelope;rot("head",0,s*.5F,s*.12F);rot("ear_left",0,0,s*.34F);rot("ear_right",0,0,s*.34F);}
+            case SNEEZE -> {
+                float wind=ease(age/9),snap=Math.max(0,sin((age-9)*.5F));
+                rot("neck",(.3F*wind-.34F*snap)*envelope,0,0);rot("head",-.4F*snap*envelope,0,0);
+                rot("ear_left",0,0,.3F*snap*envelope);rot("ear_right",0,0,-.3F*snap*envelope);
+                jaw=.3F*snap*envelope;squint=Math.max(.55F*wind,.7F*snap)*envelope;
+            }
+            case LOOK_UP -> {rot("neck",-.42F*envelope,0,0);rot("head",-.25F*envelope,0,0);rot("ear_left",-.15F*envelope,0,.1F*envelope);rot("ear_right",-.15F*envelope,0,-.1F*envelope);}
+            case PLAY_BOW -> {
+                rot("body",-.42F*envelope,0,0);move("body",0,5*envelope,0);rot("neck",.25F*envelope,0,0);
+                for(String s:new String[]{"front_left","front_right"}){rot(s+"_leg",.85F*envelope,0,0);rot(s+"_paw",-.7F*envelope,0,0);}
+                for(String s:new String[]{"rear_left","rear_right"})rot(s+"_leg",-.2F*envelope,0,0);
+                rot("tail_0",-.6F*envelope,0,0);jaw=.2F*envelope;
+            }
+            case TAIL_CHASE -> {
+                rot("body",0,sin(age*.2F)*.3F*envelope,0);rot("neck",0,.8F*envelope,0);rot("head",0,.5F*envelope,.2F*envelope);
+                for(int i=0;i<4;i++)rot("tail_"+i,0,-.35F*envelope,0);
+            }
             default -> {}
         }
         if(!dog.onGround()&&!dog.isInWater()) {
@@ -139,6 +164,15 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
             rot("tail_0",.35F,0,0);
         }
         dog.clientJaw=Mth.lerp(blend,dog.clientJaw,jaw);rot("lower_jaw",dog.clientJaw,0,0);
+        // Lids rest folded back inside the skull; closing them is a rotation towards zero.
+        float shut=Math.max(Math.max(blink(time*.05F+dog.getId()*.83F),sleep),squint);
+        part("eyelid_left").xRot*=1-shut;part("eyelid_right").xRot*=1-shut;
+    }
+    private static float pulse(float x,float start,float len){float u=(x-start)/len;return u<0||u>1?0:sin(u*Mth.PI);}
+    /** About one blink every four seconds, with an occasional quick double. */
+    private static float blink(float t){
+        float phase=t%4.1F;
+        return Math.max(pulse(phase,0,.34F),sin(t*.31F)>.35F?pulse(phase,.52F,.28F):0);
     }
     private void anger(float w){rot("brow_left",0,0,-.4F*w);rot("brow_right",0,0,.4F*w);part("eye_left").yScale=1-.25F*w;part("eye_right").yScale=1-.25F*w;}
 }

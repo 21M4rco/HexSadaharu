@@ -47,6 +47,7 @@ public final class Personality {
         if(now<retreatUntil) {retreat(owner);return;}
         if(threat!=null&&now>=dog.nextIntervention) {protect();return;}
         if(dog.isVehicle())return;
+        if(dog.homebound>0){goHome(owner);return;}
         if(dog.act()==Act.HEAD_BITE){headBite();return;}
         if(dog.act()==Act.SLEEP) {
             dog.getNavigation().stop();
@@ -164,11 +165,43 @@ public final class Personality {
             if(reunion&&!knows("reunion")){dog.setMood(Mood.EXCITED);walk(owner.position(),1.3);dog.setAct(dog.getRandom().nextBoolean()?Act.WAG_EXCITED:Act.HOP);dog.voice("excited",.7F);remember("reunion",2400);return true;}
             if(owner.getHealth()<owner.getMaxHealth()*.5&&!knows("comfort")){dog.setMood(Mood.ALERT);walk(owner.position(),.8);dog.setAct(Act.TILT_LEFT);remember("comfort",1200);return true;}
         }
-        if(distance>400&&distance<4096&&!knows("independent")) {dog.setMood(Mood.FOLLOWING_INTEREST);walk(owner.position(),1.2);return true;}
+        if(distance>400&&distance<4096&&!knows("independent")&&!knows("stay_home")) {dog.setMood(Mood.FOLLOWING_INTEREST);walk(owner.position(),1.2);return true;}
         if(distance<144&&!knows("head_bite")&&dog.getRandom().nextInt(55)==0&&!owner.isSleeping()&&!owner.isPassenger()) {
             interest=owner;dog.gagTarget(owner.getId());dog.setAct(Act.HEAD_BITE);remember("head_bite",6000);return true;
         }
         return false;
+    }
+    private void goHome(ServerPlayer owner) {
+        dog.homebound--;
+        dog.setMood(Mood.RETURNING_HOME);
+        if(dog.act().resting()||dog.act()==Act.HEAD_BITE){dog.setAct(Act.NONE);dog.gagTarget(-1);}
+        boolean sameDimension=dog.home!=null&&dog.homeDimension==dog.level().dimension();
+        if(dog.tickCount%10==0) {
+            Vec3 target;
+            if(sameDimension)target=Vec3.atBottomCenterOf(dog.home);
+            else {
+                Vec3 away=owner!=null&&owner.level()==dog.level()?dog.position().subtract(owner.position()).multiply(1,0,1):Vec3.ZERO;
+                target=dog.position().add((away.lengthSqr()<.01?new Vec3(1,0,0):away.normalize()).scale(14));
+            }
+            walk(target,1.05);
+        }
+        if(sameDimension&&dog.home.distSqr(dog.blockPosition())<64){settleHome();return;}
+        // He leaves on his own feet first; the jump home only happens once he is out of sight.
+        boolean unseen=owner==null||owner.level()!=dog.level()||dog.distanceToSqr(owner)>1024||!owner.hasLineOfSight(dog);
+        if(dog.homebound<=0||(unseen&&dog.homebound<540))settleHome();
+    }
+    private void settleHome() {
+        dog.homebound=0;
+        var server=dog.getServer();
+        net.minecraft.server.level.ServerLevel destination=dog.home==null||server==null?null:server.getLevel(dog.homeDimension);
+        if(destination!=null) {
+            Vec3 landing=SafeTravel.landing(destination,dog.home,dog);
+            if(landing!=null)SafeTravel.teleport(dog,destination,landing);
+        }
+        dog.setMood(Mood.CALM);dog.setAct(Act.SNIFF_GROUND);
+        remember("stay_home",12000);nextChoice=dog.tickCount+60;
+        ServerPlayer owner=dog.owner();
+        if(owner!=null)owner.displayClientMessage(net.minecraft.network.chat.Component.literal("Sadaharu has settled in at home."),true);
     }
     private void headBite() {
         Entity target=dog.level().getEntity(dog.gagTarget());
@@ -217,6 +250,10 @@ public final class Personality {
         return false;
     }
     private void ambient(ServerPlayer owner) {
+        // Once sent home he keeps to it for a while rather than walking straight back.
+        if(knows("stay_home")&&dog.home!=null&&dog.homeDimension==dog.level().dimension()&&dog.home.distSqr(dog.blockPosition())>576) {
+            dog.setMood(Mood.RETURNING_HOME);walk(Vec3.atBottomCenterOf(dog.home),.85);return;
+        }
         dog.setMood(dog.hunger()<250?Mood.HUNGRY:Mood.CALM);
         int roll=dog.getRandom().nextInt(100);
         if(roll==94&&!knows("head_bite")) {
@@ -227,7 +264,7 @@ public final class Personality {
         if(roll<35){dog.getNavigation().stop();dog.setAct(Act.NONE);nextChoice=dog.tickCount+160+dog.getRandom().nextInt(200);return;}
         if(roll<58){Vec3 pos=DefaultRandomPos.getPos(dog,12,3);if(pos!=null){walk(pos,.7);remember("independent",160);}return;}
         if(roll>96&&!knows("zoomies")){Vec3 p=DefaultRandomPos.getPos(dog,18,3);if(p!=null){walk(p,2.1);dog.setMood(Mood.PLAYFUL);remember("zoomies",6000);nextChoice=dog.tickCount+100;}return;}
-        Act[] idle={Act.LOOK,Act.TILT_LEFT,Act.TILT_RIGHT,Act.SNIFF_GROUND,Act.SNIFF_AIR,Act.SCRATCH,Act.SHAKE,Act.STRETCH_FRONT,Act.STRETCH,Act.SIT,Act.SIT_PANT,Act.LIE,Act.CHIN,Act.SIDE,Act.YAWN,Act.PANT,Act.LICK_NOSE,Act.LICK_PAW,Act.PAW,Act.EAR_LEFT,Act.EAR_RIGHT,Act.EAR_BOTH,Act.WAG_SLOW};
+        Act[] idle={Act.LOOK,Act.TILT_LEFT,Act.TILT_RIGHT,Act.SNIFF_GROUND,Act.SNIFF_AIR,Act.SCRATCH,Act.SHAKE,Act.STRETCH_FRONT,Act.STRETCH,Act.SIT,Act.SIT_PANT,Act.LIE,Act.CHIN,Act.SIDE,Act.YAWN,Act.PANT,Act.LICK_NOSE,Act.LICK_PAW,Act.PAW,Act.EAR_LEFT,Act.EAR_RIGHT,Act.EAR_BOTH,Act.WAG_SLOW,Act.EAR_FLICK,Act.HEAD_SHAKE,Act.SNEEZE,Act.LOOK_UP,Act.PLAY_BOW,Act.TAIL_CHASE};
         Act a=idle[dog.getRandom().nextInt(idle.length)];dog.setAct(a);nextChoice=dog.tickCount+a.ticks+60;
         if(a==Act.YAWN)dog.voice("yawn",.25F);
         if(owner!=null&&dog.distanceToSqr(owner)<144)dog.getLookControl().setLookAt(owner,15,15);

@@ -20,11 +20,18 @@ public final class SadaharuMenu extends AbstractContainerMenu {
     public int hunger(){return data.get(0);}
     public Mood mood(){return Mood.values()[Math.floorMod(data.get(1),Mood.values().length)];}
     public boolean automatic(){return data.get(2)==1;}
+    public boolean hasHome(){return data.get(4)!=Integer.MIN_VALUE;}
     @Override public boolean stillValid(Player p){return dog!=null&&dog.isAlive()&&dog.ownedBy(p)&&p.distanceToSqr(dog)<100;}
     @Override public ItemStack quickMoveStack(Player p,int slot){return ItemStack.EMPTY;}
     @Override public boolean clickMenuButton(Player p,int button) {
         if(p.level().isClientSide||!stillValid(p))return false;
-        switch(button){case 0->{dog.home=dog.blockPosition();dog.homeDimension=dog.level().dimension();}case 1->dog.home=null;case 2->dog.automaticHome=!dog.automaticHome;case 3->{p.closeContainer();return dog.mount(p);}default->{return false;}}
+        switch(button){case 0->{dog.home=dog.blockPosition();dog.homeDimension=dog.level().dimension();}case 1->dog.home=null;case 2->dog.automaticHome=!dog.automaticHome;case 3->{p.closeContainer();return dog.mount(p);}
+            case 4->{
+                p.closeContainer();
+                p.displayClientMessage(net.minecraft.network.chat.Component.literal(dog.sendHome()?"Sadaharu sets off for home.":"Set a home first, so he knows where to go."),true);
+                return true;
+            }
+            default->{return false;}}
         CompanionData.get(p.getServer()).capture(dog);
         // Reopen to synchronize the dimension/coordinates exactly (container shorts cannot hold world coordinates).
         if(p instanceof net.minecraft.server.level.ServerPlayer sp)net.minecraftforge.network.NetworkHooks.openScreen(sp,new net.minecraft.world.SimpleMenuProvider((id,inv,player)->new SadaharuMenu(id,inv,dog),net.minecraft.network.chat.Component.literal("Sadaharu")),b->{b.writeInt(dog.getId());b.writeUtf(dog.homeLabel());});

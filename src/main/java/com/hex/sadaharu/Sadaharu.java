@@ -42,7 +42,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     private float jumpCharge, rideSpeed;
     private boolean wasGround=true, wasWet, intentionalRemoval;
     private BlockPos safePosition;
-    public int actEnd;
+    public int actEnd, homebound;
     public long nextIntervention;
     public float clientSit,clientLie,clientSleep,clientJaw;
 
@@ -144,6 +144,14 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         if(!level().isClientSide&&canAmbient()){setAct(Act.SNIFF_AIR);memories.remember("familiar:"+p.getUUID(),now(),48000);}
         return InteractionResult.sidedSuccess(level().isClientSide);
     }
+    /** Sends him off on foot; Personality slips him home once nobody is watching. */
+    public boolean sendHome() {
+        if(home==null)return false;
+        ejectPassengers();getNavigation().stop();
+        homebound=600;setAct(Act.NONE);setMood(Mood.RETURNING_HOME);voice("whine",.4F);
+        if(getServer()!=null)CompanionData.get(getServer()).capture(this);
+        return true;
+    }
     public String homeLabel() {return home==null?"No home set":home.getX()+", "+home.getY()+", "+home.getZ()+" | "+homeDimension.location();}
     public boolean mount(Player p) {if(!ownedBy(p)||isVehicle())return false;getNavigation().stop();setAct(Act.MOUNT);setMood(Mood.EXCITED);return p.startRiding(this);}
     @Override public LivingEntity getControllingPassenger() {return getFirstPassenger() instanceof Player p&&ownedBy(p)?p:null;}
@@ -204,7 +212,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         if(ownerId()!=null)n.putUUID("Owner",ownerId());
         if(home!=null)n.putLong("Home",home.asLong());n.putString("HomeDimension",homeDimension.location().toString());n.putBoolean("AutomaticHome",automaticHome);
         n.putInt("Hunger",hunger());n.putInt("HungerClock",hungerClock);n.putInt("Bones",bones);n.putInt("BonesRequired",bonesRequired);n.putInt("PoopClock",poopClock);
-        n.putString("Mood",mood().name());n.putString("Act",act().name());n.putInt("RemainingAct",Math.max(0,actEnd-tickCount));n.put("BehaviorMemory",memories.save());n.putLong("NextIntervention",nextIntervention);
+        n.putString("Mood",mood().name());n.putString("Act",act().name());n.putInt("RemainingAct",Math.max(0,actEnd-tickCount));n.put("BehaviorMemory",memories.save());n.putLong("NextIntervention",nextIntervention);n.putInt("Homebound",homebound);
         if(safePosition!=null)n.putLong("SafePosition",safePosition.asLong());
     }
     @Override public void readAdditionalSaveData(CompoundTag n) {
@@ -215,7 +223,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         automaticHome=!n.contains("AutomaticHome")||n.getBoolean("AutomaticHome");setHunger(n.contains("Hunger")?n.getInt("Hunger"):1000);
         hungerClock=n.getInt("HungerClock");bones=n.getInt("Bones");bonesRequired=Math.max(2,Math.min(6,n.getInt("BonesRequired")));poopClock=n.contains("PoopClock")?n.getInt("PoopClock"):24000;
         try {setMood(Mood.valueOf(n.getString("Mood")));setAct(Act.valueOf(n.getString("Act")));}catch(IllegalArgumentException ignored){}
-        actEnd=tickCount+Math.min(24000,n.getInt("RemainingAct"));memories.load(n.getCompound("BehaviorMemory"));nextIntervention=n.getLong("NextIntervention");
+        actEnd=tickCount+Math.min(24000,n.getInt("RemainingAct"));memories.load(n.getCompound("BehaviorMemory"));nextIntervention=n.getLong("NextIntervention");homebound=Math.max(0,Math.min(600,n.getInt("Homebound")));
         if(n.contains("SafePosition"))safePosition=BlockPos.of(n.getLong("SafePosition"));setPersistenceRequired();
     }
 }
