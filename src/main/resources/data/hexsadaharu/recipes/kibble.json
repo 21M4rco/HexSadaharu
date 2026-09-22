@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "tag": "hexsadaharu:meats"
+    },
+    {
+      "tag": "hexsadaharu:fishes"
+    },
+    {
+      "item": "minecraft:wheat"
+    }
+  ],
+  "result": {
+    "item": "hexsadaharu:kibble",
+    "count": 4
+  }
+}

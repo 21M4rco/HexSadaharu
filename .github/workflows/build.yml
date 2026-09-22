@@ -1,0 +1,29 @@
+name: Build and verify Sadaharu
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Check asset and behavior contracts
+        run: python3 tools/verify.py
+      - name: Compile and package
+        run: bash gradlew build sourceZip --stacktrace
+      - name: Server integration tests
+        run: bash gradlew runGameTestServer --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: HexSadaharu-Forge-1.20.1
+          path: |
+            build/libs/*.jar
+            build/distributions/*.zip
+            run-gametest/logs/latest.log

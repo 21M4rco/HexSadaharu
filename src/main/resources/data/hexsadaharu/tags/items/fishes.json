@@ -1,0 +1,21 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "#forge:raw_fishes",
+      "required": false
+    },
+    {
+      "id": "#forge:cooked_fishes",
+      "required": false
+    },
+    {
+      "id": "#minecraft:fishes",
+      "required": false
+    },
+    "minecraft:cod",
+    "minecraft:salmon",
+    "minecraft:cooked_cod",
+    "minecraft:cooked_salmon"
+  ]
+}

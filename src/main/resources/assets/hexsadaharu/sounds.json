@@ -1,0 +1,147 @@
+{
+  "bark": {
+    "subtitle": "subtitles.hexsadaharu.bark",
+    "sounds": [
+      {
+        "name": "minecraft:entity.wolf.ambient",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "excited": {
+    "subtitle": "subtitles.hexsadaharu.excited",
+    "sounds": [
+      {
+        "name": "minecraft:entity.wolf.ambient",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      },
+      {
+        "name": "minecraft:entity.wolf.pant",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "deep_bark": {
+    "subtitle": "subtitles.hexsadaharu.deep_bark",
+    "sounds": [
+      {
+        "name": "minecraft:entity.wolf.growl",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      },
+      {
+        "name": "minecraft:entity.wolf.ambient",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "whine": {
+    "subtitle": "subtitles.hexsadaharu.whine",
+    "sounds": [
+      {
+        "name": "minecraft:entity.wolf.whine",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "growl": {
+    "subtitle": "subtitles.hexsadaharu.growl",
+    "sounds": [
+      {
+        "name": "minecraft:entity.wolf.growl",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "pant": {
+    "subtitle": "subtitles.hexsadaharu.pant",
+    "sounds": [
+      {
+        "name": "minecraft:entity.wolf.pant",
+        "type": "event",
+        "volume": 0.45,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "sleep": {
+    "subtitle": "subtitles.hexsadaharu.sleep",
+    "sounds": [
+      {
+        "name": "minecraft:entity.wolf.pant",
+        "type": "event",
+        "volume": 0.45,
+        "pitch": 0.65
+      }
+    ]
+  },
+  "yawn": {
+    "subtitle": "subtitles.hexsadaharu.yawn",
+    "sounds": [
+      {
+        "name": "minecraft:entity.wolf.whine",
+        "type": "event",
+        "volume": 0.45,
+        "pitch": 0.9
+      },
+      {
+        "name": "minecraft:entity.wolf.pant",
+        "type": "event",
+        "volume": 0.45,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "eat": {
+    "subtitle": "subtitles.hexsadaharu.eat",
+    "sounds": [
+      {
+        "name": "minecraft:entity.generic.eat",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "land": {
+    "subtitle": "subtitles.hexsadaharu.land",
+    "sounds": [
+      {
+        "name": "minecraft:entity.horse.land",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "step": {
+    "subtitle": "subtitles.hexsadaharu.step",
+    "sounds": [
+      {
+        "name": "minecraft:entity.wolf.step",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      },
+      {
+        "name": "minecraft:entity.horse.step",
+        "type": "event",
+        "volume": 1,
+        "pitch": 0.9
+      }
+    ]
+  }
+}

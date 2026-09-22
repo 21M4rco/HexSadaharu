@@ -1,0 +1,21 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved"
+[[mods]]
+modId="hexsadaharu"
+version="1.0.0"
+displayName="Hex Sadaharu"
+authors="Hex"
+description='''An enormous, independent, immortal friend. A custom Sadaharu companion for Forge 1.20.1.'''
+[[dependencies.hexsadaharu]]
+modId="forge"
+mandatory=true
+versionRange="[47.3,)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.hexsadaharu]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.20.2)"
+ordering="NONE"
+side="BOTH"
