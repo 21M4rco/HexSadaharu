@@ -9,6 +9,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.*;
 
 public final class SafeTravel {
+    private static final java.util.Map<java.util.UUID,ServerLevel> transfers=new java.util.HashMap<>();
+    public static boolean transferring(java.util.UUID id,ServerLevel target){return transfers.get(id)==target;}
     @Nullable public static Vec3 landing(ServerLevel level, BlockPos near, Entity dog) {
         // Bounded search: feet, full-size clearance and dry solid ground are all checked.
         for(int r=2;r<=10;r+=2) for(int a=0;a<12;a++) {
@@ -34,11 +36,13 @@ public final class SafeTravel {
     public static boolean teleport(Sadaharu dog, ServerLevel target, Vec3 p) {
         dog.ejectPassengers(); dog.getNavigation().stop();dog.setAct(Act.WAKE);dog.setMood(Mood.EXCITED);
         if(dog.level()!=target) {
-            Entity result=dog.changeDimension(target,new net.minecraftforge.common.util.ITeleporter() {
+            transfers.put(dog.getUUID(),target);
+            Entity result;
+            try { result=dog.changeDimension(target,new net.minecraftforge.common.util.ITeleporter() {
                 @Override public Entity placeEntity(Entity entity,ServerLevel current,ServerLevel dest,float yaw,java.util.function.Function<Boolean,Entity> reposition) {
                     Entity moved=reposition.apply(false);moved.moveTo(p.x,p.y,p.z,yaw,0);return moved;
                 }
-            });
+            }); } finally {transfers.remove(dog.getUUID());}
             if(!(result instanceof Sadaharu s))return false;dog=s;
         } else dog.teleportTo(p.x,p.y,p.z);
         dog.setDeltaMovement(Vec3.ZERO);dog.fallDistance=0;dog.getNavigation().stop();dog.setAct(Act.WAKE);dog.setMood(Mood.EXCITED);

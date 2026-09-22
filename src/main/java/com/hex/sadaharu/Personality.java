@@ -161,7 +161,7 @@ public final class Personality {
         if(distance<144) {
             boolean reunion=dog.now()-lastOwnerSeen>1200&&lastOwnerSeen!=0;
             lastOwnerSeen=dog.now();
-            if(reunion&&!knows("reunion")){dog.setMood(Mood.EXCITED);walk(owner.position(),1.3);dog.setAct(Act.WAG_EXCITED);dog.voice("excited",.7F);remember("reunion",2400);return true;}
+            if(reunion&&!knows("reunion")){dog.setMood(Mood.EXCITED);walk(owner.position(),1.3);dog.setAct(dog.getRandom().nextBoolean()?Act.WAG_EXCITED:Act.HOP);dog.voice("excited",.7F);remember("reunion",2400);return true;}
             if(owner.getHealth()<owner.getMaxHealth()*.5&&!knows("comfort")){dog.setMood(Mood.ALERT);walk(owner.position(),.8);dog.setAct(Act.TILT_LEFT);remember("comfort",1200);return true;}
         }
         if(distance>400&&distance<4096&&!knows("independent")) {dog.setMood(Mood.FOLLOWING_INTEREST);walk(owner.position(),1.2);return true;}
@@ -211,6 +211,11 @@ public final class Personality {
     private void ambient(ServerPlayer owner) {
         dog.setMood(dog.hunger()<250?Mood.HUNGRY:Mood.CALM);
         int roll=dog.getRandom().nextInt(100);
+        if(roll==94&&!knows("head_bite")) {
+            for(Entity e:nearby)if((e instanceof Player&&knows("familiar:"+e.getUUID())||e instanceof AbstractVillager)&&e instanceof LivingEntity l&&!l.isBaby()&&!e.isPassenger()&&dog.distanceToSqr(e)<64) {
+                interest=e;dog.gagTarget(e.getId());dog.setAct(Act.HEAD_BITE);remember("head_bite",6000);return;
+            }
+        }
         if(roll<35){dog.getNavigation().stop();dog.setAct(Act.NONE);nextChoice=dog.tickCount+160+dog.getRandom().nextInt(200);return;}
         if(roll<58){Vec3 pos=DefaultRandomPos.getPos(dog,12,3);if(pos!=null){walk(pos,.7);remember("independent",160);}return;}
         if(roll>96&&!knows("zoomies")){Vec3 p=DefaultRandomPos.getPos(dog,18,3);if(p!=null){walk(p,2.1);dog.setMood(Mood.PLAYFUL);remember("zoomies",6000);nextChoice=dog.tickCount+100;}return;}

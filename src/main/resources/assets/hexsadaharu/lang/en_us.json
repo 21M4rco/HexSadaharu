@@ -3,5 +3,16 @@
   "item.hexsadaharu.kibble": "Kibble",
   "item.hexsadaharu.poop": "Sadaharu\u2019s calling card",
   "key.hexsadaharu.call": "Call Dog",
-  "key.categories.hexsadaharu": "Sadaharu"
+  "key.categories.hexsadaharu": "Sadaharu",
+  "subtitles.hexsadaharu.bark": "Sadaharu bark",
+  "subtitles.hexsadaharu.excited": "Sadaharu excited",
+  "subtitles.hexsadaharu.deep_bark": "Sadaharu deep bark",
+  "subtitles.hexsadaharu.whine": "Sadaharu whine",
+  "subtitles.hexsadaharu.growl": "Sadaharu growl",
+  "subtitles.hexsadaharu.pant": "Sadaharu pant",
+  "subtitles.hexsadaharu.sleep": "Sadaharu sleep",
+  "subtitles.hexsadaharu.yawn": "Sadaharu yawn",
+  "subtitles.hexsadaharu.eat": "Sadaharu eat",
+  "subtitles.hexsadaharu.land": "Sadaharu land",
+  "subtitles.hexsadaharu.step": "Sadaharu step"
 }

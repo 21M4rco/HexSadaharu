@@ -177,6 +177,9 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         // With vanilla gravity/drag, 1.45 reaches approximately ten blocks.
         setDeltaMovement(-Math.sin(yaw)*forward,.8+.65*jumpCharge,Math.cos(yaw)*forward);hasImpulse=true;hurtMarked=true;setAct(Act.LEAP);
     }
+    @Override protected void playStepSound(BlockPos p,net.minecraft.world.level.block.state.BlockState state) {
+        if(!level().isClientSide&&tickCount%5==0) {var sound=ForgeRegistries.SOUND_EVENTS.getValue(HexSadaharu.id("step"));if(sound!=null)level().playSound(null,p,sound,SoundSource.NEUTRAL,isVehicle()?.4F:.23F,.8F+random.nextFloat()*.15F);}
+    }
     @Override public boolean hurt(DamageSource source,float amount) {
         if(!level().isClientSide&&source.getEntity() instanceof LivingEntity l)personality.threat(l);
         return false;
@@ -191,7 +194,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     @Override public void checkDespawn() {}
     @Override public void setRemoved(RemovalReason r) {
         if(!level().isClientSide&&!intentionalRemoval&&(r==RemovalReason.KILLED||r==RemovalReason.DISCARDED))return;
-        if(!level().isClientSide&&getServer()!=null&&!intentionalRemoval)CompanionData.get(getServer()).capture(this);
+        if(!level().isClientSide&&getServer()!=null&&!intentionalRemoval&&r!=RemovalReason.CHANGED_DIMENSION)CompanionData.get(getServer()).capture(this);
         super.setRemoved(r);
     }
     public void rejectDuplicate() {intentionalRemoval=true;super.setRemoved(RemovalReason.DISCARDED);}

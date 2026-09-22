@@ -39,7 +39,7 @@ public final class WorldEvents {
         if(e.getLevel().isClientSide()||!(e.getEntity() instanceof Sadaharu dog))return;
         CompanionData data=CompanionData.get(e.getLevel().getServer());
         Sadaharu existing=data.loaded(e.getLevel().getServer());
-        if(data.dog!=null&&!data.dog.equals(dog.getUUID())||existing!=null&&existing!=dog) {e.setCanceled(true);dog.rejectDuplicate();return;}
+        if(data.dog!=null&&!data.dog.equals(dog.getUUID())||existing!=null&&existing!=dog&&!SafeTravel.transferring(dog.getUUID(),(ServerLevel)e.getLevel())) {e.setCanceled(true);dog.rejectDuplicate();return;}
         data.capture(dog);
     }
     @SubscribeEvent(priority=EventPriority.HIGHEST) public void attack(LivingAttackEvent e) {if(e.getEntity() instanceof Sadaharu){e.setCanceled(true);if(e.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity l)((Sadaharu)e.getEntity()).personality.threat(l);}}

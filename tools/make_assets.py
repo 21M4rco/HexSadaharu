@@ -29,7 +29,7 @@ for y,h,w,d in [(-15,3,16,15),(-12,3,23,19),(-9,4,27,21),(-5,5,29,21),(0,3,27,20
 box(head,[-7,3,-8],[14,6,2],6)
 # Soft wide cheek lobes flank a short, broad articulated muzzle.
 for side in [-1,1]:
- c=bone('cheek_'+str(side),'head',[side*10,3,-5],(0,0,side*-5)); roundbox(c,[0,0,0],[9,12,12]);
+ c=bone('cheek_'+str(side),'head',[side*9,2,-5],(0,0,side*-5)); roundbox(c,[0,0,0],[9,10,12]);
  for i in range(3):
   f=bone('cheek_tuft_'+str(side)+'_'+str(i),c['name'],[side*3,1+i*2,1+i],(0,0,side*(20+i*6)));box(f,[-1,-2,-2],[3,5,4])
  ear=bone('ear_'+('left' if side==1 else 'right'),'head',[side*10,-11,-1],(0,0,side*25))
@@ -43,6 +43,9 @@ for side in [-1,1]:
  for j in range(5):
   t=j/4;seg=bone('brow_'+str(side)+'_'+str(j),brow['name'],[(t-.5)*6.6,-math.sin(t*math.pi)*1.7,0],(0,0,math.degrees(math.atan(-math.cos(t*math.pi)*.65))))
   box(seg,[-1,-.7,-.4],[2,1.45,.9],4)
+ # The distinctive comma-shaped inner eyebrow bulb.
+ box(brow,[-side*2-1.15,-1,-.6],[2.3,2.5,1.1],4)
+ box(brow,[-side*2-.8,1.2,-.55],[1.6,.55,1],4)
 upper=bone('upper_jaw','head',[0,3,-9]);roundbox(upper,[0,0,-2],[14,7,9]);
 box(upper,[-5,2.4,-5],[10,.8,7],6)
 nose=bone('nose','upper_jaw',[0,-2,-6.65]);box(nose,[-2.2,-.8,-.4],[4.4,1.8,1.1],4);box(nose,[-1.2,.7,-.35],[2.4,1.2,.9],4);box(nose,[-1.2,-.7,-.55],[1.7,.4,.25],9)
@@ -59,7 +62,7 @@ for name,x,z in [('front_left',8,-10),('front_right',-8,-10),('rear_left',8,11),
  for i in [-1,0,1]:box(paw,[i*2.6-.8,1,-6.8],[1.7,2.2,1.3])
  for side in [-1,1]:
   f=bone(name+'_fluff_'+str(side),leg['name'],[side*3,0,1],(0,0,side*15));box(f,[-1,-2,-2],[3,6,5])
-for i,(p,piv,rot,size) in enumerate([('body',[0,-5,14],[45,0,0],[10,10,11]),('tail_0',[0,0,8],[35,0,0],[10,10,10]),('tail_1',[0,0,7],[38,0,0],[9,9,9]),('tail_2',[0,0,6],[25,0,0],[7,7,8])]):
+for i,(p,piv,rot,size) in enumerate([('body',[0,-5,14],[45,0,0],[10,10,11]),('tail_0',[0,0,6],[35,0,0],[9,9,8]),('tail_1',[0,0,5],[38,0,0],[8,8,7]),('tail_2',[0,0,4],[25,0,0],[6,6,6])]):
  b=bone('tail_'+str(i),p,piv,rot);roundbox(b,[0,0,3],size)
 for j in range(5):
  b=bone('chest_fluff_'+str(j),'chest',[(j-2)*4,7-abs(j-2),-6],(0,0,(j-2)*9));box(b,[-2,-2,-2],[4.5,7,4])
@@ -90,4 +93,5 @@ for tag,vals in [('meats',[{'id':'forge:raw_meats','required':False},{'id':'forg
   if isinstance(v,dict):v['id']='#'+v['id']
  p.write_text(json.dumps({'replace':False,'values':vals},indent=2))
 p=D/'hexsadaharu/recipes/kibble.json';p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps({'type':'minecraft:crafting_shapeless','ingredients':[{'tag':'hexsadaharu:meats'},{'tag':'hexsadaharu:fishes'},{'item':'minecraft:wheat'}],'result':{'item':'hexsadaharu:kibble','count':4}},indent=2))
+lang=json.loads((A/'lang/en_us.json').read_text());lang.update({'subtitles.hexsadaharu.'+k:'Sadaharu '+k.replace('_',' ') for k in ['bark','excited','deep_bark','whine','growl','pant','sleep','yawn','eat','land','step']});(A/'lang/en_us.json').write_text(json.dumps(lang,indent=2))
 print(len(rig),'bones;',sum(len(b['cubes']) for b in rig),'cuboids')
