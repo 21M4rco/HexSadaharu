@@ -17,8 +17,14 @@ jobs:
         run: python3 tools/verify.py
       - name: Compile and package
         run: bash gradlew build sourceZip --stacktrace
+      - name: Download Minecraft assets with one network retry
+        run: bash gradlew downloadAssets || bash gradlew downloadAssets
       - name: Server integration tests
         run: bash gradlew runGameTestServer --stacktrace
+      - name: Native client model render
+        run: xvfb-run -a bash gradlew runClient -PvisualReview --stacktrace
+        env:
+          LIBGL_ALWAYS_SOFTWARE: true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -27,3 +33,5 @@ jobs:
             build/libs/*.jar
             build/distributions/*.zip
             run-gametest/logs/latest.log
+            run/screenshots/*.png
+            run/logs/latest.log

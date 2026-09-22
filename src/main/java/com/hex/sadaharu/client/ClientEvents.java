@@ -18,6 +18,12 @@ public final class ClientEvents {
     @SubscribeEvent public static void setup(FMLClientSetupEvent e){e.enqueueWork(()->MenuScreens.register(HexSadaharu.MENU.get(),SadaharuScreen::new));}
     @Mod.EventBusSubscriber(modid=HexSadaharu.ID,value=Dist.CLIENT)
     public static final class Ticks {
+        private static int reviewWait;
+        @SubscribeEvent public static void review(TickEvent.ClientTickEvent e){
+            if(e.phase!=TickEvent.Phase.END||!Boolean.getBoolean("hexsadaharu.review"))return;
+            Minecraft mc=Minecraft.getInstance();
+            if(mc.getOverlay()==null&&mc.screen!=null&&!(mc.screen instanceof ModelReviewScreen)&&++reviewWait>80)mc.setScreen(new ModelReviewScreen());
+        }
         @SubscribeEvent public static void tick(TickEvent.ClientTickEvent e){if(e.phase==TickEvent.Phase.END)while(CALL.consumeClick()){if(Minecraft.getInstance().player!=null&&Minecraft.getInstance().screen==null)Network.CHANNEL.sendToServer(new Network.Call());}}
     }
 }

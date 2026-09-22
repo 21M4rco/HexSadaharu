@@ -76,7 +76,7 @@ public final class Personality {
         if(nearby.size()>64)nearby=new ArrayList<>(nearby.subList(0,64));
         for(Entity e:nearby) {
             Profile p=classify(e);
-            if(e instanceof Mob m&&(m.getTarget()==owner||m.getTarget()==dog))threat(m);
+            if(e instanceof Mob m&&((owner!=null&&m.getTarget()==owner)||m.getTarget()==dog))threat(m);
             if(e instanceof Projectile projectile&&projectile.getDeltaMovement().lengthSqr()>.08&&dog.distanceToSqr(e)<36&&!knows("projectile")){dog.setAct(Act.ALERT);remember("projectile",200);}
             if(e instanceof Player player&&!player.isSpectator()) {
                 String seen="seen:"+e.getUUID();
