@@ -83,7 +83,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         if(level().isClientSide||voiceCooldown>0)return;
         var ev=ForgeRegistries.SOUND_EVENTS.getValue(HexSadaharu.id(sound));
         if(ev!=null)level().playSound(null,blockPosition(),ev,SoundSource.NEUTRAL,volume,.85F+random.nextFloat()*.25F);
-        voiceCooldown=80+random.nextInt(100);
+        voiceCooldown=sound.equals("bark")?45+random.nextInt(70):80+random.nextInt(100);
     }
     @Override public void tick() {
         super.tick();fallDistance=0;

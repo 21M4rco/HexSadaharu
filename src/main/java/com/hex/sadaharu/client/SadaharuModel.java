@@ -226,6 +226,8 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
             jaw=Math.max(jaw,.14F);
         }
         dog.clientJaw=Mth.lerp(blend,dog.clientJaw,jaw);rot("lower_jaw",dog.clientJaw,0,0);
+        // The cute :3 line belongs only to the fully closed-mouth expression.
+        part("closed_mouth_mark").visible=jaw<.01F&&dog.clientJaw<.035F;
         // Lids rest folded back inside the skull; closing them is a rotation towards zero.
         float shut=Math.max(Math.max(blink(time*.05F+dog.getId()*.83F),sleep),squint);
         part("eyelid_left").xRot*=1-shut;part("eyelid_right").xRot*=1-shut;

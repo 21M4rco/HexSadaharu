@@ -284,6 +284,7 @@ public final class Personality {
                 interest=e;dog.gagTarget(e.getId());dog.setAct(Act.HEAD_BITE);remember("head_bite",6000);return;
             }
         }
+        if(roll>=80&&roll<88) {dog.getNavigation().stop();dog.setAct(Act.BARK);dog.voice("bark",.7F);nextChoice=dog.tickCount+Act.BARK.ticks+25;return;}
         if(roll<35){dog.getNavigation().stop();dog.setAct(Act.NONE);nextChoice=dog.tickCount+160+dog.getRandom().nextInt(200);return;}
         if(roll<58){Vec3 pos=DefaultRandomPos.getPos(dog,12,3);if(pos!=null){walk(pos,.7);remember("independent",160);}return;}
         if(roll>96&&!knows("zoomies")){Vec3 p=DefaultRandomPos.getPos(dog,18,3);if(p!=null){walk(p,2.1);dog.setMood(Mood.PLAYFUL);remember("zoomies",6000);nextChoice=dog.tickCount+100;}return;}
