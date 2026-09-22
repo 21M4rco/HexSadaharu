@@ -69,6 +69,13 @@ for name in ('upper_jaw','lower_jaw','tongue'):
 for name in ('eyelid_left','eyelid_right'):
  buried(name,by[name]['cubes'],skull,name)
 
+# The render smoke test poses parts directly and never calls setupAnim, so a bone the
+# animation controller names but the rig does not have would only fail in a live world.
+model=(r/'src/main/java/com/hex/sadaharu/client/SadaharuModel.java').read_text()
+for ref in sorted(set(re.findall(r'(?:part|rot|move)\("([a-z0-9_]+)"',model))):
+ if ref.endswith('_'):continue                       # a concatenation prefix such as "tail_"+i
+ assert ref in names,'SadaharuModel drives missing bone '+ref
+
 src='\n'.join(p.read_text() for p in (r/'src/main/java').rglob('*.java'))
 assert 'extends Wolf' not in src
 assert src.count('new KeyMapping(')==1
