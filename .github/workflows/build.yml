@@ -16,11 +16,12 @@ jobs:
       - name: Check asset and behavior contracts
         run: python3 tools/verify.py
       - name: Compile and package
-        run: bash gradlew build sourceZip --stacktrace
+        run: timeout -k 30 900 bash gradlew build sourceZip --stacktrace
       - name: Download Minecraft assets with one network retry
         run: bash gradlew downloadAssets || bash gradlew downloadAssets
       - name: Server integration tests
-        run: bash gradlew runGameTestServer --stacktrace
+        # Bounded like the render step: a stalled server must fail, not idle out the job.
+        run: timeout -k 30 600 bash gradlew runGameTestServer --stacktrace
       - name: Native client model render
         # Hard bound: a wedged GL context must fail the step, never consume the job timeout.
         run: xvfb-run -a timeout -k 30 540 bash gradlew runClient -PvisualReview --stacktrace
