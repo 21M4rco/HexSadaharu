@@ -77,6 +77,45 @@ for ref in sorted(set(re.findall(r'(?:part|rot|move)\("([a-z0-9_]+)"',model))):
  assert ref in names,'SadaharuModel drives missing bone '+ref
 
 src='\n'.join(p.read_text() for p in (r/'src/main/java').rglob('*.java'))
+personality=(r/'src/main/java/com/hex/sadaharu/Personality.java').read_text()
+
+# The screen and the menu are wired by raw integers, so nothing but a check keeps a
+# button from calling a case that does not exist, or from landing off the panel.
+screen=(r/'src/main/java/com/hex/sadaharu/client/SadaharuScreen.java').read_text()
+menu=(r/'src/main/java/com/hex/sadaharu/SadaharuMenu.java').read_text()
+handled={int(n) for n in re.findall(r'case (\d+)\s*->',menu.split('clickMenuButton')[1])}
+clicked={int(n) for n in re.findall(r'send\((\d+)\)',screen)}
+assert clicked<=handled,'screen sends unhandled button ids '+str(clicked-handled)
+assert handled<=clicked,'menu handles button ids no screen button sends: '+str(handled-clicked)
+height=int(re.search(r'imageHeight=(\d+)',screen).group(1))
+boxes=[tuple(int(v) for v in m) for m in re.findall(r'bounds\(leftPos\+(\d+),topPos\+(\d+),(\d+),(\d+)\)',screen)]
+assert len(boxes)==len(clicked),'every button should carry explicit bounds'
+for x,y,w,h in boxes:
+ assert y+h<=height-12,'a button at y='+str(y)+' runs past the '+str(height)+'px panel'
+ assert x+w<=int(re.search(r'imageWidth=(\d+)',screen).group(1)),'a button at x='+str(x)+' runs past the panel width'
+for i,a in enumerate(boxes):
+ for b in boxes[i+1:]:
+  assert a[0]+a[2]<=b[0] or b[0]+b[2]<=a[0] or a[1]+a[3]<=b[1] or b[1]+b[3]<=a[1],'two buttons overlap: '+str(a)+' '+str(b)
+label=int(re.search(r'calls him\.",\d+,(\d+),',screen).group(1))
+assert all(y+h<=label for x,y,w,h in boxes),'a button overlaps the footer hint'
+slots=int(re.search(r'SimpleContainerData\((\d+)\)',menu).group(1))
+assert slots==int(re.search(r'getCount\(\)\{return (\d+);\}',menu).group(1)),'client and server data slot counts differ'
+assert max(int(n) for n in re.findall(r'case (\d+)->dog\.',menu.split('ContainerData()')[1].split('public void set')[0]))==slots-1,'a data slot is declared but never filled'
+
+# Following is a persisted instruction, not a transient flag.
+dogsrc=(r/'src/main/java/com/hex/sadaharu/Sadaharu.java').read_text()
+for field in ('Following','AutomaticHome'):
+ assert 'putBoolean("'+field+'"' in dogsrc,field+' is never written to NBT'
+ assert 'getBoolean("'+field+'")' in dogsrc,field+' is never read back from NBT'
+assert 'getJumpPower' in dogsrc,'he still uses the vanilla jump height'
+assert re.search(r'BlockPathTypes\.WATER,\s*([0-9.]+)',dogsrc),'water pathfinding malus is unset'
+assert float(re.search(r'BlockPathTypes\.WATER,\s*([0-9.]+)',dogsrc).group(1))<=4,'water is priced so high he walks around every pond'
+assert 'afloat()' in model,'the client never draws a swimming pose'
+assert 'setAct(Act.SLEEP_TWITCH)' in personality,'nothing ever starts a dream twitch'
+assert 'case SLEEP_TWITCH' in model,'the dream twitch has no pose of its own'
+assert 'setAct(Act.LEAP)' in personality,'nothing makes him leap of his own accord'
+assert 'dog.following' in personality,'the follow instruction never reaches his behaviour'
+
 assert 'extends Wolf' not in src
 assert src.count('new KeyMapping(')==1
 assert 'SpawnEggItem' not in src
@@ -111,7 +150,6 @@ for event in ('bark','deep_bark','excited'):
  assert sounds[event]['sounds'][0]['name']=='hexsadaharu:bark',event+' must lead with his own bark'
 
 # Casual interactions have to be both chosen on the server and drawn on the client.
-personality=(r/'src/main/java/com/hex/sadaharu/Personality.java').read_text()
 played=set(re.findall(r'voice\("([a-z_]+)"',personality+(r/'src/main/java/com/hex/sadaharu/Sadaharu.java').read_text()))
 assert played<=registered,played-registered
 assert 'voice("bark"' in personality,'nothing ever plays the bark event'

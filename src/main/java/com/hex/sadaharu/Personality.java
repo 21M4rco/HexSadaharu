@@ -55,9 +55,11 @@ public final class Personality {
         if(dog.isVehicle())return;
         if(dog.homebound>0){goHome(owner);return;}
         if(dog.act()==Act.HEAD_BITE||dog.act()==Act.LICK_PLAYER){closeIn(dog.act()==Act.HEAD_BITE?3.5:4.5);return;}
-        if(dog.act()==Act.SLEEP) {
+        if(dog.act()==Act.SLEEP||dog.act()==Act.SLEEP_TWITCH) {
             dog.getNavigation().stop();
             if(!dog.level().isNight()||threat!=null||(owner!=null&&owner.distanceToSqr(dog)<100&&holdsFood(owner))) {dog.setAct(Act.WAKE);dog.setMood(Mood.CALM);}
+            else if(dog.act()==Act.SLEEP_TWITCH&&dog.tickCount>=dog.actEnd)dog.setAct(Act.SLEEP);   // back under, still asleep
+            else if(dog.act()==Act.SLEEP&&dog.getRandom().nextInt(400)==0)dog.setAct(Act.SLEEP_TWITCH);
             else if(dog.tickCount%360==0)dog.voice("sleep",.18F);
             return;
         }
@@ -66,6 +68,7 @@ public final class Personality {
             if(owner!=null&&owner.level()==dog.level()&&dog.distanceToSqr(owner)<144&&holdsFood(owner)) {dog.setAct(Act.NONE);nextChoice=0;}
             else return;
         }
+        if(dog.swimming()&&swim(owner))return;
         if(dog.tickCount%40==0)checkProgress();
         if(dog.tickCount<nextChoice)return;
         nextChoice=dog.tickCount+40+dog.getRandom().nextInt(60);
@@ -171,7 +174,12 @@ public final class Personality {
             if(reunion&&!knows("reunion")){dog.setMood(Mood.EXCITED);walk(owner.position(),1.3);dog.setAct(dog.getRandom().nextBoolean()?Act.WAG_EXCITED:Act.HOP);dog.voice("excited",.7F);remember("reunion",2400);return true;}
             if(owner.getHealth()<owner.getMaxHealth()*.5&&!knows("comfort")){dog.setMood(Mood.ALERT);walk(owner.position(),.8);dog.setAct(Act.TILT_LEFT);remember("comfort",1200);return true;}
         }
-        if(distance>400&&distance<4096&&!knows("independent")&&!knows("stay_home")) {dog.setMood(Mood.FOLLOWING_INTEREST);walk(owner.position(),1.2);return true;}
+        if(dog.following&&distance>64&&distance<16384) {
+            dog.setMood(Mood.FOLLOWING_INTEREST);walk(owner.position(),distance>576?1.45:1.05);
+            if(dog.onGround()&&!dog.getNavigation().isDone()&&dog.horizontalCollision)hurdle();
+            return true;
+        }
+        if(!dog.following&&distance>400&&distance<4096&&!knows("independent")&&!knows("stay_home")) {dog.setMood(Mood.FOLLOWING_INTEREST);walk(owner.position(),1.2);return true;}
         if(distance<144&&!knows("head_bite")&&dog.getRandom().nextInt(55)==0&&!owner.isSleeping()&&!owner.isPassenger()) {
             interest=owner;dog.gagTarget(owner.getId());dog.setAct(Act.HEAD_BITE);remember("head_bite",6000);return true;
         }
@@ -294,12 +302,42 @@ public final class Personality {
         else pathFailures=0;
         return ok;
     }
+    /** A real leap over a wall or a gap, only with room for the whole body above him. */
+    private boolean hurdle() {
+        if(!dog.onGround()||dog.isInWater()||dog.isVehicle())return false;
+        if(!dog.level().noCollision(dog,dog.getBoundingBox().move(0,1.35,0)))return false;
+        var path=dog.getNavigation().getPath();
+        Vec3 aim=path==null||path.isDone()?null:Vec3.atBottomCenterOf(path.getNextNodePos()).subtract(dog.position()).multiply(1,0,1);
+        if(aim==null||aim.lengthSqr()<.04)aim=Vec3.directionFromRotation(0,dog.getYRot());
+        aim=aim.normalize().scale(.38);
+        dog.setAct(Act.LEAP);
+        dog.setDeltaMovement(aim.x,.62,aim.z);dog.hasImpulse=true;dog.hurtMarked=true;
+        return true;
+    }
+    /** Out of his depth: make for the owner if they are reachable, otherwise the nearest shore. */
+    private boolean swim(ServerPlayer owner) {
+        if(dog.act()!=Act.NONE)dog.setAct(Act.NONE);
+        if(dog.tickCount%10!=0)return true;
+        if(owner!=null&&owner.level()==dog.level()&&dog.distanceToSqr(owner)<1024&&!owner.isSwimming()) {
+            dog.setMood(Mood.FOLLOWING_INTEREST);walk(owner.position(),1.1);return true;
+        }
+        dog.setMood(Mood.ALERT);
+        BlockPos best=null;double nearest=Double.MAX_VALUE;
+        for(int i=0;i<12;i++) {
+            BlockPos p=dog.blockPosition().offset(dog.getRandom().nextInt(25)-12,0,dog.getRandom().nextInt(25)-12);
+            if(dog.level().getFluidState(p).isEmpty()&&dog.getNavigation().isStableDestination(p)) {
+                double d=p.distSqr(dog.blockPosition());
+                if(d<nearest){nearest=d;best=p;}
+            }
+        }
+        if(best!=null)walk(Vec3.atBottomCenterOf(best),1.2);
+        return true;
+    }
     private void checkProgress() {
         if(!dog.getNavigation().isDone()&&dog.position().distanceToSqr(lastPosition)<.16) {
             stuckTicks+=40;
             if(stuckTicks>=80){dog.getNavigation().stop();nextChoice=0;stuckTicks=0;Vec3 p=DefaultRandomPos.getPos(dog,8,2);if(p!=null)walk(p,.9);}
-            // A modest navigation hop, only with room for the whole body above.
-            else if(dog.onGround()&&dog.horizontalCollision&&dog.level().noCollision(dog,dog.getBoundingBox().move(0,1.2,0))){dog.setAct(Act.LEAP);dog.setDeltaMovement(dog.getDeltaMovement().add(0,.55,0));}
+            else if(dog.horizontalCollision)hurdle();
         }else stuckTicks=0;
         lastPosition=dog.position();
     }

@@ -49,12 +49,13 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
     @Override public void setupAnim(Sadaharu dog,float limb,float amount,float time,float yaw,float pitch) {
         root.getAllParts().forEach(ModelPart::resetPose);
         Act act=dog.act();float age=dog.actAge(time-dog.tickCount);
+        boolean asleep=act==Act.SLEEP||act==Act.SLEEP_TWITCH;
         float envelope=ease(age/10)*(act==Act.SLEEP?1:ease((act.ticks-age)/12));
         float targetSit=(act==Act.SIT||act==Act.SIT_PANT||act==Act.POOP)?1:0;
         float targetLie=(act==Act.LIE||act==Act.CHIN||act==Act.SIDE||act==Act.SLEEP||act==Act.SLEEP_TWITCH)?1:0;
         float blend=1-(float)Math.pow(.78,Math.max(.1,Minecraft.getInstance().getDeltaFrameTime()));
         dog.clientSit=Mth.lerp(blend,dog.clientSit,targetSit);dog.clientLie=Mth.lerp(blend,dog.clientLie,targetLie);
-        dog.clientSleep=Mth.lerp(blend,dog.clientSleep,act==Act.SLEEP?1:0);
+        dog.clientSleep=Mth.lerp(blend,dog.clientSleep,asleep?1:0);
         float sit=dog.clientSit,lie=dog.clientLie,sleep=dog.clientSleep;
         float moving=Mth.clamp(amount*2.2F,0,1)*(1-Math.max(sit,lie));
         float speed=(float)dog.getDeltaMovement().horizontalDistance();
@@ -71,7 +72,7 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
         }
         move("body",0,-Math.abs(sin(limb*.7F))*moving*(.7F+bound*1.3F),0);
         rot("body",sin(limb*.7F)*moving*bound*.09F,0,sin(limb*.33F)*moving*.025F);
-        move("chest",0,sin(time*.075F)*(act==Act.SLEEP?.3F:.16F),0);part("chest").xScale=1+sin(time*.075F)*.006F;
+        move("chest",0,sin(time*.075F)*(asleep?.3F:.16F),0);part("chest").xScale=1+sin(time*.075F)*.006F;
         // Sit: haunches drop, front paws hold weight, rear paws fold out.
         move("body",0,6*sit,1.5F*sit);rot("body",-.3F*sit,0,0);
         rot("neck",.3F*sit,0,0);move("head",0,-1.5F*sit,0);
@@ -107,7 +108,17 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
             case SIT_PANT, PANT -> {jaw=(.24F+sin(age*.3F)*.025F)*envelope;move("tongue",0,0,-2.6F*envelope);rot("tongue",sin(age*.25F)*.1F,0,0);}
             case CHIN -> {move("head",0,5*envelope,-1*envelope);rot("head",-.18F*envelope,0,0);}
             case SIDE -> {rot("body",0,0,.75F*envelope);move("body",2*envelope,0,0);rot("head",0,0,-.18F*envelope);}
-            case SLEEP, SLEEP_TWITCH -> {if(sin(time*.017F)>.9F){rot("front_left_paw",sin(time*.9F)*.08F,0,0);rot("ear_right",0,0,sin(time*.65F)*.1F);}}
+            case SLEEP -> {if(sin(time*.017F)>.9F){rot("front_left_paw",sin(time*.9F)*.08F,0,0);rot("ear_right",0,0,sin(time*.65F)*.1F);}}
+            case SLEEP_TWITCH -> {
+                // Chasing something in his sleep: paws paddle, ears and tail flick, jaw works.
+                float dream=envelope*(.55F+sin(age*.09F)*.45F);
+                rot("front_left_paw",sin(age*1.15F)*.42F*dream,0,0);rot("front_right_paw",sin(age*1.15F+2.1F)*.36F*dream,0,0);
+                rot("front_left_leg",sin(age*1.15F)*.14F*dream,0,0);rot("rear_right_paw",sin(age*.95F+1.1F)*.25F*dream,0,0);
+                rot("ear_right",0,0,sin(age*1.6F)*.2F*dream);rot("ear_left",0,0,sin(age*1.45F+.7F)*.16F*dream);
+                rot("head",sin(age*.5F)*.05F*dream,sin(age*.37F)*.09F*dream,0);
+                for(int i=0;i<4;i++)rot("tail_"+i,0,sin(age*.8F-i*.5F)*.14F*dream,0);
+                jaw=Math.abs(sin(age*.7F))*.1F*dream;
+            }
             case WAKE -> {rot("head",-.2F*envelope,0,0);rot("ear_left",0,0,.15F*envelope);rot("ear_right",0,0,-.15F*envelope);jaw=.3F*envelope;}
             case YAWN -> {jaw=.95F*envelope;rot("head",-.35F*envelope,0,0);rot("tongue",-.4F*envelope,0,0);squint=.7F*envelope;}
             case LICK_NOSE -> {jaw=.13F*envelope;move("tongue",0,-1.2F*envelope,-5*envelope);rot("tongue",-1*envelope,0,0);}
@@ -188,6 +199,19 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
             for(String s:new String[]{"front_left","front_right"})rot(s+"_leg",vy<-.3F?-.9F:-1.05F,0,0);
             for(String s:new String[]{"rear_left","rear_right"})rot(s+"_leg",vy>0?.9F:.25F,0,0);
             rot("tail_0",.35F,0,0);
+        }
+        if(dog.afloat()) {
+            // Paddling overwrites the gait rather than layering on it: front paws cycle in
+            // tight circles just under the surface, the rear legs trail, the head stays up.
+            float paddle=time*.55F;
+            rot("body",-.17F,0,0);rot("neck",-.32F,0,0);rot("head",-.1F,0,0);
+            rot("ear_left",.22F,0,.13F);rot("ear_right",.22F,0,-.13F);
+            part("front_left_leg").xRot=-.8F+sin(paddle)*.7F;part("front_left_paw").xRot=.55F+sin(paddle+1.3F)*.5F;
+            part("front_right_leg").xRot=-.8F+sin(paddle+Mth.PI)*.7F;part("front_right_paw").xRot=.55F+sin(paddle+Mth.PI+1.3F)*.5F;
+            part("rear_left_leg").xRot=.3F+sin(paddle+Mth.PI)*.32F;part("rear_right_leg").xRot=.3F+sin(paddle)*.32F;
+            part("rear_left_paw").xRot=.2F;part("rear_right_paw").xRot=.2F;
+            for(int i=0;i<4;i++)rot("tail_"+i,.1F,sin(paddle*.45F-i*.6F)*.2F,0);
+            jaw=Math.max(jaw,.14F);
         }
         dog.clientJaw=Mth.lerp(blend,dog.clientJaw,jaw);rot("lower_jaw",dog.clientJaw,0,0);
         // Lids rest folded back inside the skull; closing them is a rotation towards zero.

@@ -22,9 +22,11 @@ public final class CompanionGameTests {
         h.assertTrue(dog.isAlive()&&!dog.isRemoved(),"Lethal damage and ordinary cleanup cannot remove Sadaharu");
         Sadaharu duplicate=HexSadaharu.DOG.get().create(level);duplicate.moveTo(p.getX()+4,p.getY(),p.getZ(),0,0);
         h.assertTrue(!level.addFreshEntity(duplicate),"A second UUID must be rejected");
+        dog.following=false;
         CompoundTag saved=new CompoundTag();dog.saveWithoutId(saved);
         Sadaharu restored=HexSadaharu.DOG.get().create(level);restored.load(saved);
         h.assertTrue(owner.equals(restored.ownerId())&&restored.hunger()==432&&p.equals(restored.home),"Ownership, satiety and home round trip");
+        h.assertTrue(!restored.following,"The follow instruction round trips");
         h.assertTrue(restored.memories.remembers("test",dog.now()),"Behavior memory round trips");
         restored.setRemoved(Entity.RemovalReason.UNLOADED_TO_CHUNK);
         h.assertTrue(restored.isRemoved(),"Non-destructive chunk unload remains permitted");
@@ -39,6 +41,14 @@ public final class CompanionGameTests {
             dog.setAct(gesture);dog.gagTarget(Integer.MAX_VALUE);dog.personality.tick();
             h.assertTrue(dog.act()==Act.NONE&&dog.gagTarget()==-1,gesture+" with no target clears itself");
         }
+        dog.following=true;
+        h.assertTrue(dog.sendHome()&&!dog.following,"Sending him home cancels following, which is the opposite instruction");
+        dog.homebound=0;dog.following=true;
+        h.assertTrue(dog.getJumpPower()>.5F,"He jumps higher than a vanilla 0.42, or a fence beats him");
+        h.assertTrue(!dog.afloat()&&!dog.swimming(),"He is not swimming while stood on dry ground");
+        // A dream must put him back under rather than ending the night's sleep.
+        dog.setAct(Act.SLEEP_TWITCH);dog.actEnd=dog.tickCount;
+        h.assertTrue(dog.act().resting(),"A dream twitch still counts as rest");
         dog.setAct(Act.POUT);
         h.assertTrue(dog.act()==Act.POUT&&!dog.act().resting(),"Pouting is a timed gesture, not a resting pose that stalls the loop");
         dog.setAct(Act.NONE);
