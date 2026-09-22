@@ -13,7 +13,7 @@ A standalone **Minecraft Forge 1.20.1 / Java 17** companion mod. No additional g
 
 ## Design
 
-The model is original cuboid geometry rather than a vanilla wolf model: a broad sculpted head, raised brown eyebrows, glossy eyes, articulated upper/lower jaw, tongue and teeth, heavy paws, red collar and four-part curled tail. The native model controller layers breathing, blinking, ear/tail motion and gait with 45 timed gestures and smooth resting transitions.
+The model is original cuboid geometry rather than a vanilla wolf model: a broad sculpted head, raised brown eyebrows, glossy eyes, articulated upper/lower jaw, tongue and teeth, heavy paws, red collar and four-part curled tail. The native model controller layers breathing, blinking, ear/tail motion and gait with 42 timed gestures and smooth resting transitions.
 
 Sadaharu makes server-side decisions using bounded awareness caches and persisted memory. Protection is a single maximum-2-health hit followed by retreat and a 45-second cooldown. Hunger changes behavior, never health; a full meter takes roughly 100 minutes to empty. Home return is tempered by distance, danger and travel with the owner. Ordinary behavior never breaks blocks.
 

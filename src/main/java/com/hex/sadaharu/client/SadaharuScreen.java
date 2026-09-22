@@ -22,7 +22,7 @@ public final class SadaharuScreen extends AbstractContainerScreen<SadaharuMenu> 
         g.drawString(font,menu.mood().name().toLowerCase().replace('_',' '),160,53,0xCCDDAF,false);
         g.fill(16,67,274,71,0xFF41454F);g.fill(16,67,16+(int)(258*menu.hunger()/1000F),71,0xFFE8C889);
         g.drawWordWrap(font,Component.literal("Home: "+menu.homeText),16,82,258,0xAFB4BF);
-        g.drawString(font,"Shift + right-click also mounts. H calls him.",16,210,0x8D96A6,false);
+        g.drawString(font,"Shift + right-click mounts. "+ClientEvents.CALL.getTranslatedKeyMessage().getString()+" calls him.",16,210,0x8D96A6,false);
     }
     @Override public void render(GuiGraphics g,int mx,int my,float pt){renderBackground(g);super.render(g,mx,my,pt);renderTooltip(g,mx,my);}
 }

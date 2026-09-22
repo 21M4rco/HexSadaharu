@@ -32,10 +32,10 @@ public final class ModelReviewScreen extends Screen {
             if(i==5){model.part("body").xRot-=.18F;model.part("body").y-=3;for(String s:new String[]{"front_left","front_right"})model.part(s+"_leg").xRot-=1.05F;for(String s:new String[]{"rear_left","rear_right"})model.part(s+"_leg").xRot+=.9F;}
             int x=(i%3)*cellW,y=30+(i/3)*cellH;
             g.drawString(font,names[i],x+12,y+5,0x25344A,false);
-            PoseStack p=g.pose();p.pushPose();p.translate(x+cellW*.5,y+cellH*.62,200);
+            PoseStack p=g.pose();p.pushPose();p.translate(x+cellW*.5,y+cellH*.53,200);
             float scale=Math.min(cellW/4.8F,cellH/4F);p.scale(scale,scale,scale);
-            p.mulPose(Axis.ZP.rotationDegrees(180));p.mulPose(Axis.XP.rotationDegrees(-10));p.mulPose(Axis.YP.rotationDegrees(angles[i]));
-            com.mojang.blaze3d.platform.Lighting.setupForEntityInInventory();
+            p.mulPose(Axis.XP.rotationDegrees(-10));p.mulPose(Axis.YP.rotationDegrees(180+angles[i]));
+            com.mojang.blaze3d.systems.RenderSystem.setShaderLights(new org.joml.Vector3f(-.3F,-1F,.8F).normalize(),new org.joml.Vector3f(.6F,-.4F,-.5F).normalize());
             model.root().render(p,g.bufferSource().getBuffer(RenderType.entityCutoutNoCull(HexSadaharu.id("textures/entity/sadaharu.png"))),15728880,OverlayTexture.NO_OVERLAY);
             g.flush();p.popPose();
         }

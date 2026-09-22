@@ -20,7 +20,7 @@ root=bone('root',None,[0,24,0]); body=bone('body','root',[0,-19,3]);roundbox(bod
 chest=bone('chest','body',[0,-1,-10]);roundbox(chest,[0,0,0],[25,23,14]);
 neck=bone('neck','chest',[0,-6,-3]);roundbox(neck,[0,-1,0],[23,18,14]);
 collar=bone('collar','neck',[0,6,-1]);roundbox(collar,[0,0,0],[26.8,3.4,20],5)
-box(collar,[-2,-1.2,-10.2],[4,3,1],11)
+# The canonical collar remains a plain red band.
 head=bone('head','neck',[0,-5,-3]);
 for y,h,w,d in [(-15,3,16,15),(-12,3,23,19),(-9,4,27,21),(-5,5,29,21),(0,3,27,20)]:
  box(head,[-w/2+2,y,-2-d/2],[w-4,h,d])

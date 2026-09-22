@@ -39,6 +39,9 @@ public final class SafeTravel {
             transfers.put(dog.getUUID(),target);
             Entity result;
             try { result=dog.changeDimension(target,new net.minecraftforge.common.util.ITeleporter() {
+                @Override public net.minecraft.world.level.portal.PortalInfo getPortalInfo(Entity entity,ServerLevel dest,java.util.function.Function<ServerLevel,net.minecraft.world.level.portal.PortalInfo> fallback) {
+                    return new net.minecraft.world.level.portal.PortalInfo(p,Vec3.ZERO,entity.getYRot(),0);
+                }
                 @Override public Entity placeEntity(Entity entity,ServerLevel current,ServerLevel dest,float yaw,java.util.function.Function<Boolean,Entity> reposition) {
                     Entity moved=reposition.apply(false);moved.moveTo(p.x,p.y,p.z,yaw,0);return moved;
                 }

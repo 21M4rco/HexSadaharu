@@ -26,9 +26,24 @@ public final class CompanionGameTests {
         Sadaharu restored=HexSadaharu.DOG.get().create(level);restored.load(saved);
         h.assertTrue(owner.equals(restored.ownerId())&&restored.hunger()==432&&p.equals(restored.home),"Ownership, satiety and home round trip");
         h.assertTrue(restored.memories.remembers("test",dog.now()),"Behavior memory round trips");
+        restored.setRemoved(Entity.RemovalReason.UNLOADED_TO_CHUNK);
+        h.assertTrue(restored.isRemoved(),"Non-destructive chunk unload remains permitted");
+        h.assertTrue(data.dog.equals(dog.getUUID()),"Chunk unload does not erase the reserved identity");
         CompanionData copy=CompanionData.load(data.save(new CompoundTag()));
         h.assertTrue(copy.dog.equals(dog.getUUID())&&copy.owner.equals(owner),"Unique world record round trips");
         h.assertTrue(SafeTravel.landing(level,p,dog)!=null,"Full-size safe placement finds the test floor");
-        h.runAfterDelay(40,()->{h.assertTrue(dog.isAlive()&&dog.getHealth()>0,"Immortality survives subsequent ticks");dog.rejectDuplicate();data.dog=null;data.owner=null;data.setDirty();h.succeed();});
+        h.runAfterDelay(40,()->{
+            h.assertTrue(dog.isAlive()&&dog.getHealth()>0,"Immortality survives subsequent ticks");
+            var destination=level.getServer().getLevel(net.minecraft.world.level.Level.NETHER);
+            h.assertTrue(destination!=null,"Cross-dimensional test destination exists");
+            var landing=new net.minecraft.world.phys.Vec3(8.5,110,8.5);
+            destination.getChunk(0,0);
+            h.assertTrue(SafeTravel.teleport(dog,destination,landing),"Cross-dimensional transfer succeeds");
+            Sadaharu transferred=data.loaded(level.getServer());
+            h.assertTrue(transferred!=null&&transferred.getUUID().equals(dog.getUUID())&&transferred.level()==destination,"Transfer retains exactly the same UUID");
+            h.assertTrue(owner.equals(transferred.ownerId())&&p.equals(transferred.home),"Transfer retains owner and home");
+            h.assertTrue(SafeTravel.teleport(transferred,level,net.minecraft.world.phys.Vec3.atBottomCenterOf(p)),"Return transfer succeeds");
+            data.loaded(level.getServer()).rejectDuplicate();data.dog=null;data.owner=null;data.setDirty();h.succeed();
+        });
     }
 }

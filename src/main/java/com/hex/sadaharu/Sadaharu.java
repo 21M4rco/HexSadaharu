@@ -148,7 +148,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     public boolean mount(Player p) {if(!ownedBy(p)||isVehicle())return false;getNavigation().stop();setAct(Act.MOUNT);setMood(Mood.EXCITED);return p.startRiding(this);}
     @Override public LivingEntity getControllingPassenger() {return getFirstPassenger() instanceof Player p&&ownedBy(p)?p:null;}
     @Override protected boolean canAddPassenger(Entity e) {return e instanceof Player p&&ownedBy(p)&&getPassengers().isEmpty();}
-    @Override public double getPassengersRidingOffset() {return 1.82+Math.sin(tickCount*.45)*Math.min(.055,rideSpeed*.04);}
+    @Override public double getPassengersRidingOffset() {return 1.50+Math.sin(tickCount*.45)*Math.min(.055,rideSpeed*.04);}
     @Override protected void positionRider(Entity rider,Entity.MoveFunction move) {
         if(!hasPassenger(rider))return;
         double yaw=Math.toRadians(getYRot()),forward=.24;
@@ -162,11 +162,12 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     @Override protected void tickRidden(Player rider,Vec3 input) {
         super.tickRidden(rider,input);
         setYRot(net.minecraft.util.Mth.rotLerp(.25F,getYRot(),rider.getYRot()));yRotO=getYRot();yBodyRot=getYRot();yHeadRot=getYRot();setXRot(rider.getXRot()*.2F);
-        float target=Math.abs(rider.zza)>.01F?(rider.isSprinting()?1.28F:.86F):0;
+        float target=Math.abs(rider.zza)>.01F?((rider.isSprinting()||isSprinting())?1.28F:.86F):0;
         rideSpeed=net.minecraft.util.Mth.approach(rideSpeed,target,target>rideSpeed?.045F:.075F);
         rider.fallDistance=0;
     }
     @Override protected float getRiddenSpeed(Player rider) {return rideSpeed;}
+    @Override public boolean canSprint() {return true;}
     @Override public boolean canJump() {return isVehicle()&&onGround();}
     @Override public void onPlayerJump(int charge) {jumpCharge=Math.max(.35F,Math.min(1,charge/90F));}
     @Override public void handleStartJump(int charge) {if(canJump()){onPlayerJump(charge);prepareTicks=8;setAct(Act.PREPARE_LEAP);}}

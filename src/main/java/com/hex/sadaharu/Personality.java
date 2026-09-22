@@ -182,6 +182,14 @@ public final class Personality {
     private boolean weather() {
         if(dog.level().isThundering()&&!knows("thunder")){dog.setMood(Mood.SCARED);dog.setAct(Act.ALERT);dog.voice("whine",.35F);remember("thunder",1600);}
         boolean rain=dog.level().isRainingAt(dog.blockPosition());
+        var feet=dog.level().getBlockState(dog.blockPosition());
+        if((feet.is(Blocks.SNOW)||dog.level().getBlockState(dog.blockPosition().below()).is(Blocks.SNOW_BLOCK))&&!knows("snow")) {
+            dog.setMood(Mood.CURIOUS);dog.setAct(Act.PAW);remember("snow",3000);return true;
+        }
+        if(dog.isInWater()&&dog.onGround()&&!knows("splash")) {
+            dog.setMood(Mood.PLAYFUL);dog.setAct(Act.PAW);remember("splash",2400);
+            ((net.minecraft.server.level.ServerLevel)dog.level()).sendParticles(net.minecraft.core.particles.ParticleTypes.SPLASH,dog.getX(),dog.getY()+.3,dog.getZ(),12,.8,.1,.8,.1);return true;
+        }
         if((rain||dog.level().isDay()&&dog.getRandom().nextInt(5)==0)&&dog.level().canSeeSky(dog.blockPosition())) {
             for(int i=0;i<8;i++){
                 BlockPos p=dog.blockPosition().offset(dog.getRandom().nextInt(25)-12,0,dog.getRandom().nextInt(25)-12);
