@@ -168,7 +168,7 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
     public boolean mount(Player p) {if(!ownedBy(p)||isVehicle()||downed>0)return false;getNavigation().stop();setAct(Act.MOUNT);setMood(Mood.EXCITED);return p.startRiding(this);}
     @Override public LivingEntity getControllingPassenger() {return getFirstPassenger() instanceof Player p&&ownedBy(p)?p:null;}
     @Override protected boolean canAddPassenger(Entity e) {return downed<=0&&e instanceof Player p&&ownedBy(p)&&getPassengers().isEmpty();}
-    @Override public double getPassengersRidingOffset() {return 1.50+Math.sin(tickCount*.45)*Math.min(.055,rideSpeed*.04);}
+    @Override public double getPassengersRidingOffset() {return 2.00+Math.sin(tickCount*.45)*Math.min(.055,rideSpeed*.04);}
     @Override protected void positionRider(Entity rider,Entity.MoveFunction move) {
         if(!hasPassenger(rider))return;
         double yaw=Math.toRadians(getYRot()),forward=.24;

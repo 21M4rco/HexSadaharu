@@ -21,7 +21,7 @@ public final class HexSadaharu {
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, ID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, ID);
     public static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, ID);
-    public static final RegistryObject<EntityType<Sadaharu>> DOG = ENTITIES.register("sadaharu", () -> EntityType.Builder.of(Sadaharu::new, MobCategory.CREATURE).sized(2.15F, 2.85F).clientTrackingRange(12).updateInterval(1).fireImmune().build(ID+":sadaharu"));
+    public static final RegistryObject<EntityType<Sadaharu>> DOG = ENTITIES.register("sadaharu", () -> EntityType.Builder.of(Sadaharu::new, MobCategory.CREATURE).sized(2.15F, 3.35F).clientTrackingRange(12).updateInterval(1).fireImmune().build(ID+":sadaharu"));
     public static final RegistryObject<Item> KIBBLE = ITEMS.register("kibble", () -> new Item(new Item.Properties()));
     public static final RegistryObject<Item> POOP = ITEMS.register("poop", () -> new Item(new Item.Properties()));
     public static final RegistryObject<MenuType<SadaharuMenu>> MENU = MENUS.register("companion", () -> net.minecraftforge.common.extensions.IForgeMenuType.create((IContainerFactory<SadaharuMenu>)SadaharuMenu::new));

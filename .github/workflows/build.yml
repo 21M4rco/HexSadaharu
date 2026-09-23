@@ -34,6 +34,13 @@ jobs:
           echo "$jar is installable as-is"
       - name: Download Minecraft assets with one network retry
         run: bash gradlew downloadAssets || bash gradlew downloadAssets
+      - name: Prepare headless runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libflite1 flite1-dev
+          mkdir -p run-gametest run/screenshots
+          touch run-gametest/server.properties
+          rm -f run/screenshots/sadaharu-runtime-review.png
       - name: Server integration tests
         # Bounded like the render step: a stalled server must fail, not idle out the job.
         run: timeout -k 30 600 bash gradlew runGameTestServer --stacktrace
@@ -41,10 +48,13 @@ jobs:
         # Hard bound: a wedged GL context must fail the step, never consume the job timeout.
         run: xvfb-run -a timeout -k 30 540 bash gradlew runClient -PvisualReview --stacktrace
         env:
+          ALSOFT_DRIVERS: "null"
           LIBGL_ALWAYS_SOFTWARE: "true"
           GALLIUM_DRIVER: llvmpipe
           MESA_GL_VERSION_OVERRIDE: "4.6"
           MESA_GLSL_VERSION_OVERRIDE: "460"
+      - name: Confirm native model screenshot
+        run: test -s run/screenshots/sadaharu-runtime-review.png
       - name: Upload the mod jar
         if: always()
         uses: actions/upload-artifact@v4

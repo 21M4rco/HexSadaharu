@@ -20,23 +20,29 @@ public final class ModelReviewScreen extends Screen {
     @Override public void render(GuiGraphics g,int mx,int my,float partial) {
         g.fill(0,0,width,height,0xFFCFD9E6);
         g.drawString(font,"SADAHARU / Minecraft runtime model",12,10,0x25344A,false);
-        String[] names={"Front","Side","Rear","Sitting","Mouth open","Bounding"};
-        float[] angles={0,90,180,25,15,55};
-        int cellW=width/3,cellH=(height-30)/2;
-        for(int i=0;i<6;i++) {
-            model.root().getAllParts().forEach(ModelPart::resetPose);
-            if(i==3){model.part("body").y+=6;model.part("body").xRot-=.3F;model.part("neck").xRot+=.3F;
+        String[] names={"Front","Side","Rear","Sitting","Mouth open","Bounding","Three-quarter","Sleeping"};
+        float[] angles={0,90,180,25,15,55,30,35};
+        int cellW=width/4,cellH=(height-30)/2;
+        for(int i=0;i<8;i++) {
+            model.root().getAllParts().forEach(part->{part.resetPose();part.visible=true;});
+            model.part("eyelid_left").visible=false;model.part("eyelid_right").visible=false;model.part("closed_mouth_mark").visible=i!=4;
+            if(i==3){model.part("body").y+=6;model.part("body").z+=1.5F;model.part("body").xRot-=.3F;model.part("neck").xRot+=.3F;model.part("head").y-=1.5F;
                 for(String s:new String[]{"front_left","front_right"}){model.part(s+"_leg").y-=4;model.part(s+"_leg").xRot+=.3F;}
-                for(String s:new String[]{"rear_left","rear_right"}){model.part(s+"_leg").xRot-=1.1F;model.part(s+"_paw").xRot+=1.3F;}}
+                for(String s:new String[]{"rear_left","rear_right"}){model.part(s+"_leg").xRot-=1.1F;model.part(s+"_leg").zRot+=s.equals("rear_left")?-.18F:.18F;model.part(s+"_paw").xRot+=1.3F;}}
             if(i==4){model.part("lower_jaw").xRot+=.95F;model.part("head").xRot-=.2F;}
             if(i==5){model.part("body").xRot-=.18F;model.part("body").y-=3;for(String s:new String[]{"front_left","front_right"})model.part(s+"_leg").xRot-=1.05F;for(String s:new String[]{"rear_left","rear_right"})model.part(s+"_leg").xRot+=.9F;}
-            int x=(i%3)*cellW,y=30+(i/3)*cellH;
+            if(i==7){model.part("body").y+=10;model.part("body").xRot+=.055F;model.part("neck").y+=2;model.part("neck").xRot+=.17F;
+                model.part("head").y+=2.5F;model.part("head").z-=1;model.part("head").xRot+=.12F;model.part("head").yRot-=.13F;model.part("head").zRot-=.08F;
+                for(String s:new String[]{"front_left","front_right"}){model.part(s+"_leg").xRot-=1.38F;model.part(s+"_paw").xRot+=1.3F;}
+                for(String s:new String[]{"rear_left","rear_right"}){model.part(s+"_leg").xRot+=1.2F;model.part(s+"_paw").xRot-=.8F;}
+                for(String s:new String[]{"left","right"}){model.part("eye_"+s).visible=false;model.part("eyelid_"+s).visible=true;}}
+            int x=(i%4)*cellW,y=30+(i/4)*cellH;
             g.drawString(font,names[i],x+12,y+5,0x25344A,false);
             PoseStack p=g.pose();p.pushPose();p.translate(x+cellW*.5,y+cellH*.53,200);
             float scale=Math.min(cellW/4.8F,cellH/4F);p.scale(scale,scale,scale);
             p.mulPose(Axis.XP.rotationDegrees(-10));p.mulPose(Axis.YP.rotationDegrees(180+angles[i]));
             com.mojang.blaze3d.systems.RenderSystem.setShaderLights(new org.joml.Vector3f(-.3F,-1F,.8F).normalize(),new org.joml.Vector3f(.6F,-.4F,-.5F).normalize());
-            model.root().render(p,g.bufferSource().getBuffer(RenderType.entityCutoutNoCull(HexSadaharu.id("textures/entity/sadaharu.png"))),15728880,OverlayTexture.NO_OVERLAY);
+            model.renderToBuffer(p,g.bufferSource().getBuffer(RenderType.entityCutoutNoCull(HexSadaharu.id("textures/entity/sadaharu.png"))),15728880,OverlayTexture.NO_OVERLAY,1,1,1,1);
             g.flush();p.popPose();
         }
         frames++;
@@ -45,3 +51,4 @@ public final class ModelReviewScreen extends Screen {
     }
     @Override public boolean isPauseScreen(){return false;}
 }
+
