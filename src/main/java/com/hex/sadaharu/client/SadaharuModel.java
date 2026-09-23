@@ -24,6 +24,7 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
     public static LayerDefinition layer() {
         try(var in=Minecraft.getInstance().getResourceManager().getResource(HexSadaharu.id("models/entity/sadaharu.json")).orElseThrow().open();var reader=new InputStreamReader(in,StandardCharsets.UTF_8)){
             JsonObject document=JsonParser.parseReader(reader).getAsJsonObject();
+            polishRuntimeRig(document.getAsJsonArray("bones"));
             definitions=document.getAsJsonArray("bones");coatDefinitions=document.getAsJsonArray("coats");
             MeshDefinition mesh=new MeshDefinition();Map<String,PartDefinition> parts=new HashMap<>();
             for(JsonElement e:definitions) {
@@ -38,6 +39,47 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
             }
             return LayerDefinition.create(mesh,512,512);
         }catch(IOException e){throw new IllegalStateException("Sadaharu rig could not load",e);}
+    }
+    /**
+     * Small runtime sculpt pass for details that must stay easy to iterate without rebaking the
+     * multi-megabyte skinned coat.  Ears are not part of the welded coat, so replacing only their
+     * local meshes is safe and keeps the body/head skin untouched.
+     */
+    private static void polishRuntimeRig(JsonArray defs) {
+        for(String name:new String[]{"ear_left","ear_right"}) {
+            JsonObject ear=findBone(defs,name);if(ear==null)continue;
+            JsonArray meshes=new JsonArray();
+            // Soft tapered outer ear: rounded base, narrow tip, enough depth to stop reading as a plate.
+            meshes.add(roundMesh(0,-5.35F,.15F,10.7F,12.7F,5.0F,0,2.05F,.13F,1.02F,20,12));
+            // A few embedded white lobes soften the rim and give the silhouette the same furry breakup as the coat.
+            meshes.add(roundMesh(-3.55F,-2.6F,.25F,2.7F,5.7F,3.25F,0,2.0F,.28F,.95F,12,8));
+            meshes.add(roundMesh(3.55F,-2.6F,.25F,2.7F,5.7F,3.25F,0,2.0F,.28F,.95F,12,8));
+            meshes.add(roundMesh(0,-9.65F,.2F,3.1F,4.4F,2.9F,0,2.0F,.18F,.72F,12,8));
+            // Rounded pink inset, held just off the front surface so it remains readable from three-quarter views.
+            meshes.add(roundMesh(0,-5.05F,-2.48F,6.1F,9.1F,.72F,2,2.0F,.10F,.88F,16,10));
+            ear.add("meshes",meshes);
+        }
+        JsonObject mark=findBone(defs,"closed_mouth_mark");
+        if(mark!=null) {
+            JsonArray meshes=new JsonArray();
+            // Compact, perfectly mirrored :3 mark directly under the nose instead of wrapping around one cheek.
+            meshes.add(roundMesh(0,2.40F,-7.22F,.56F,.34F,.26F,4,2.0F,1,1,12,8));
+            for(int side:new int[]{-1,1})for(int i=1;i<=4;i++) {
+                float t=i/4F;
+                meshes.add(roundMesh(side*(.22F+1.10F*t),2.40F+.36F*t,-7.20F+.03F*t,
+                        .56F,.32F,.25F,4,2.0F,1,1,12,8));
+            }
+            mark.add("meshes",meshes);
+        }
+    }
+    private static JsonObject findBone(JsonArray defs,String name) {
+        for(JsonElement e:defs){JsonObject b=e.getAsJsonObject();if(name.equals(b.get("name").getAsString()))return b;}return null;
+    }
+    private static JsonArray vec(float... v){JsonArray a=new JsonArray();for(float n:v)a.add(n);return a;}
+    private static JsonObject roundMesh(float x,float y,float z,float sx,float sy,float sz,int material,float power,
+                                        float taper0,float taper1,int segments,int rings) {
+        JsonObject o=new JsonObject();o.add("center",vec(x,y,z));o.add("size",vec(sx,sy,sz));o.addProperty("material",material);
+        o.addProperty("power",power);o.add("taper",vec(taper0,taper1));o.addProperty("segments",segments);o.addProperty("rings",rings);return o;
     }
     private static float f(JsonArray a,int i){return a.get(i).getAsFloat();}
     public SadaharuModel(ModelPart root) {
@@ -108,10 +150,12 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
         rot("neck",.3F*sit,0,0);move("head",0,-1.5F*sit,0);
         for(String s:new String[]{"front_left","front_right"}){rot(s+"_leg",.3F*sit,0,0);move(s+"_leg",0,-4*sit,0);}
         for(String s:new String[]{"rear_left","rear_right"}){rot(s+"_leg",-1.1F*sit,0,s.equals("rear_left")?-.18F*sit:.18F*sit);rot(s+"_paw",1.3F*sit,0,0);}
-        // Lie and sleep: elbows fold first, then chest settles; the head remains softly alive.
+        // Lie and sleep: forelegs reach forward while the hind legs tuck under the hips like a real dog.
         move("body",0,10*lie,0);rot("body",.055F*lie,0,0);move("neck",0,2*lie,0);
         for(String s:new String[]{"front_left","front_right"}){rot(s+"_leg",-1.38F*lie,0,0);rot(s+"_paw",1.3F*lie,0,0);}
-        for(String s:new String[]{"rear_left","rear_right"}){rot(s+"_leg",1.2F*lie,0,0);rot(s+"_paw",-.8F*lie,0,0);}
+        rot("rear_left_leg",-1.05F*lie,0,.72F*lie);rot("rear_right_leg",-1.05F*lie,0,-.72F*lie);
+        rot("rear_left_paw",1.22F*lie,0,.16F*lie);rot("rear_right_paw",1.22F*lie,0,-.16F*lie);
+        move("rear_left_leg",-1.45F*lie,1.5F*lie,-1.9F*lie);move("rear_right_leg",1.45F*lie,1.5F*lie,-1.9F*lie);
         move("head",0,2.5F*sleep,-1*sleep);rot("neck",.17F*sleep,0,0);rot("head",.12F*sleep,-.13F*sleep,-.08F*sleep);
         // resetPose does not restore scale, and only anger() touches the eyes now.
         part("eye_left").yScale=1;part("eye_right").yScale=1;
@@ -179,8 +223,8 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
             }
             case WAKE -> {rot("head",-.2F*envelope,0,0);rot("ear_left",0,0,.15F*envelope);rot("ear_right",0,0,-.15F*envelope);jaw=.3F*envelope;}
             case YAWN -> {jaw=.95F*envelope;rot("head",-.35F*envelope,0,0);rot("tongue",-.4F*envelope,0,0);squint=.7F*envelope;}
-            case LICK_NOSE -> {jaw=.13F*envelope;move("tongue",0,-1.2F*envelope,-5*envelope);rot("tongue",-1*envelope,0,0);}
-            case LICK_PAW -> {rot("front_left_leg",-1.15F*envelope,0,0);rot("neck",.4F*envelope,0,-.17F*envelope);jaw=.25F*envelope;move("tongue",0,0,-(1+sin(age*.5F))*envelope);}
+            case LICK_NOSE -> {jaw=.16F*envelope;part("tongue").zScale=1.75F;move("tongue",0,-1.35F*envelope,-6.4F*envelope);rot("tongue",-1.05F*envelope,0,0);}
+            case LICK_PAW -> {float lap=Math.max(0,sin(age*.5F));rot("front_left_leg",-1.15F*envelope,0,0);rot("neck",.4F*envelope,0,-.17F*envelope);jaw=.27F*envelope;part("tongue").zScale=1.45F+.45F*lap;move("tongue",0,0,-(2.2F+3.0F*lap)*envelope);}
             case PAW -> rot("front_right_leg",(-.4F+sin(age*.28F)*.3F)*envelope,0,0);
             case HOP -> move("body",0,-Math.abs(sin(age*.12F))*3*envelope,0);
             case ALERT, STARE -> {rot("ear_left",0,0,.12F*envelope);rot("ear_right",0,0,-.12F*envelope);rot("head",-.12F*envelope,0,0);}
@@ -197,7 +241,7 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
                 } else jaw=.25F*envelope;
             }
             case EAT -> {rot("neck",.35F*envelope,0,0);jaw=(.18F+Math.abs(sin(age*.4F))*.28F)*envelope;if(age>65)rot("head",-.18F*envelope,0,0);}
-            case DRINK -> {rot("neck",.7F*envelope,0,0);move("head",0,3*envelope,0);jaw=.2F*envelope;move("tongue",0,0,-Math.abs(sin(age*.6F))*3*envelope);}
+            case DRINK -> {float lap=Math.abs(sin(age*.6F));rot("neck",.7F*envelope,0,0);move("head",0,3*envelope,0);jaw=.22F*envelope;part("tongue").zScale=1.55F+.65F*lap;move("tongue",0,.35F*lap*envelope,-(2.5F+4.8F*lap)*envelope);rot("tongue",-.18F*lap*envelope,0,0);}
             case POOP -> {rot("tail_0",-.75F*envelope,0,0);rot("body",.15F*envelope,0,0);rot("head",0,.25F*envelope,0);}
             case MOUNT -> {rot("head",0,.6F*envelope,0);rot("ear_right",0,0,-.2F*envelope);}
             case PREPARE_LEAP -> {move("body",0,4*envelope,0);rot("rear_left_leg",-1*envelope,0,0);rot("rear_right_leg",-1*envelope,0,0);rot("body",-.18F*envelope,0,0);}
@@ -233,7 +277,8 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
                 float sweep=Math.max(0,sin(age*.42F));
                 rot("neck",-.1F*envelope,0,0);rot("head",(-.12F+sweep*.1F)*envelope,0,.14F*envelope);
                 jaw=(.16F+sweep*.2F)*envelope;
-                move("tongue",0,-1.6F*sweep*envelope,-(2.6F+sweep*4.2F)*envelope);
+                part("tongue").zScale=1.55F+sweep*.75F;
+                move("tongue",0,-1.9F*sweep*envelope,-(3.4F+sweep*5.3F)*envelope);
                 rot("tongue",(-1.15F+sweep*.8F)*envelope,0,.1F*envelope);
                 rot("ear_left",.14F*envelope,0,.1F*envelope);rot("ear_right",.14F*envelope,0,-.1F*envelope);
                 for(int i=0;i<4;i++)rot("tail_"+i,0,sin(age*.5F-i*.5F)*.3F*envelope,0);
@@ -283,9 +328,16 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
             for(int i=0;i<4;i++)rot("tail_"+i,.1F,sin(paddle*.45F-i*.6F)*.2F,0);
             jaw=Math.max(jaw,.14F);
         }
-        dog.clientJaw=Mth.lerp(blend,dog.clientJaw,jaw);rot("lower_jaw",dog.clientJaw,0,0);
-        // The cute :3 line belongs only to the fully closed-mouth expression.
-        part("closed_mouth_mark").visible=jaw<.01F&&dog.clientJaw<.035F;
+        dog.clientJaw=Mth.lerp(blend,dog.clientJaw,jaw);
+        // Closed, the lower jaw nests into the muzzle instead of reading as a second white lip.
+        // As soon as the mouth really opens it smoothly regains its full volume and becomes the articulated jaw.
+        float jawOpen=Mth.clamp(dog.clientJaw/.30F,0,1);
+        ModelPart lower=part("lower_jaw");
+        lower.yScale*=Mth.lerp(jawOpen,.62F,1F);lower.zScale*=Mth.lerp(jawOpen,.80F,1F);
+        move("lower_jaw",0,Mth.lerp(jawOpen,-1.15F,0),Mth.lerp(jawOpen,.9F,0));
+        rot("lower_jaw",dog.clientJaw,0,0);
+        // The centered :3 belongs only to a genuinely closed mouth and vanishes immediately on opening.
+        part("closed_mouth_mark").visible=jaw<.004F&&dog.clientJaw<.018F;
         // Round eyes compress into a gentle closed-eye smile without lids clipping the skull.
         float shut=Math.max(Math.max(blink(time*.05F+dog.getId()*.83F),sleep),squint);
         for(String side:new String[]{"left","right"}){
