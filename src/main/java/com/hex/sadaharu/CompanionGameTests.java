@@ -102,7 +102,23 @@ public final class CompanionGameTests {
         dog.setAct(Act.POUT);
         h.assertTrue(dog.act()==Act.POUT&&!dog.act().resting(),"Pouting is a timed gesture, not a resting pose that stalls the loop");
         dog.setAct(Act.NONE);
-        h.runAfterDelay(40,()->{
+        // Exercise the real damage event pipeline, including zombie armor and the old cap.
+        var hostile=net.minecraft.world.entity.EntityType.ZOMBIE.create(level);
+        hostile.setNoAi(true);hostile.setBaby(false);hostile.moveTo(dog.getX()+1.5,dog.getY(),dog.getZ(),0,0);level.addFreshEntity(hostile);
+        var returnPoint=dog.position();dog.following=true;dog.nextIntervention=0;
+        dog.personality.tick();
+        h.assertTrue(dog.act()==Act.BARK,"A visible nearby hostile earns a warning bark before it attacks");
+        dog.personality.threat(hostile);float hostileHealth=hostile.getHealth();dog.personality.tick();
+        h.assertTrue(Math.abs(hostileHealth-hostile.getHealth()-10)<.001,"A hostile bite removes exactly five hearts through the armor/event pipeline");
+        h.assertTrue(dog.mood()==Mood.RETREATING&&dog.following,"Escape takes priority without clearing the owner's follow instruction");
+        dog.personality.tick();
+        h.assertTrue(Math.abs(hostileHealth-hostile.getHealth()-10)<.001,"Retreat never repeats the hit");
+        hostile.discard();
+        h.runAfterDelay(110,()->{
+            // With no connected owner, he returns to the point he left even if the enemy died.
+            dog.moveTo(returnPoint.x,returnPoint.y,returnPoint.z,0,0);dog.personality.tick();
+            h.assertTrue(dog.mood()!=Mood.RETREATING&&dog.following,"The escape ends and following remains enabled");
+            h.assertTrue(dog.nextIntervention>dog.now(),"Returning cannot immediately restart combat");
             h.assertTrue(dog.isAlive()&&dog.getHealth()>0,"Immortality survives subsequent ticks");
             var destination=level.getServer().getLevel(net.minecraft.world.level.Level.NETHER);
             h.assertTrue(destination!=null,"Cross-dimensional test destination exists");
@@ -117,3 +133,4 @@ public final class CompanionGameTests {
         });
     }
 }
+

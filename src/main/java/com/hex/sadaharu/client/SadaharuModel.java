@@ -17,12 +17,14 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
     public static final ModelLayerLocation LAYER=new ModelLayerLocation(HexSadaharu.id("sadaharu"),"main");
     private final ModelPart root;
     private final Map<String,ModelPart> bones=new HashMap<>();
-    private static JsonArray definitions;
+    private static JsonArray definitions,coatDefinitions;
+    private final List<SkinnedCoat> coats=new ArrayList<>();
     private record Skin(ModelPart part,List<RoundedMesh> meshes,List<ModelPart> chain) {}
     private final List<Skin> skins=new ArrayList<>();
     public static LayerDefinition layer() {
         try(var in=Minecraft.getInstance().getResourceManager().getResource(HexSadaharu.id("models/entity/sadaharu.json")).orElseThrow().open();var reader=new InputStreamReader(in,StandardCharsets.UTF_8)){
-            definitions=JsonParser.parseReader(reader).getAsJsonObject().getAsJsonArray("bones");
+            JsonObject document=JsonParser.parseReader(reader).getAsJsonObject();
+            definitions=document.getAsJsonArray("bones");coatDefinitions=document.getAsJsonArray("coats");
             MeshDefinition mesh=new MeshDefinition();Map<String,PartDefinition> parts=new HashMap<>();
             for(JsonElement e:definitions) {
                 JsonObject b=e.getAsJsonObject();CubeListBuilder cubes=CubeListBuilder.create();
@@ -52,10 +54,14 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
                 skins.add(new Skin(bones.get(name),meshes,chain));
             }
         }
+        if(coatDefinitions!=null)for(JsonElement coat:coatDefinitions)coats.add(new SkinnedCoat(coat.getAsJsonObject(),chains));
     }
     @Override public void renderToBuffer(com.mojang.blaze3d.vertex.PoseStack pose,com.mojang.blaze3d.vertex.VertexConsumer out,int light,int overlay,float red,float green,float blue,float alpha) {
         root.render(pose,out,light,overlay,red,green,blue,alpha);
         if(!root.visible)return;
+        pose.pushPose();root.translateAndRotate(pose);
+        for(SkinnedCoat coat:coats)coat.render(pose,out,light,overlay,red,green,blue,alpha);
+        pose.popPose();
         for(Skin skin:skins){
             if(skin.chain.stream().anyMatch(p->!p.visible))continue;
             pose.pushPose();root.translateAndRotate(pose);
@@ -296,3 +302,4 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
     }
     private void anger(float w){rot("brow_left",0,0,-.4F*w);rot("brow_right",0,0,.4F*w);part("eye_left").yScale=1-.25F*w;part("eye_right").yScale=1-.25F*w;}
 }
+

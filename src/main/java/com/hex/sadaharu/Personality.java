@@ -26,6 +26,8 @@ public final class Personality {
     private Entity interest;
     private BlockPos blockInterest;
     private long retreatUntil,lastOwnerSeen;
+    private long nextHostileBark;
+    private Vec3 escapeFrom,returnPosition;
     private int nextChoice,stuckTicks,pathFailures;
     private Vec3 lastPosition=Vec3.ZERO;
     private long soundUntil;
@@ -56,7 +58,9 @@ public final class Personality {
         if(dog.tickCount%20==0)observe(owner);
         if(threat!=null&&(!threat.isAlive()||threat.level()!=dog.level()||dog.distanceToSqr(threat)>1600))threat=null;
         if(now<retreatUntil) {retreat(owner);return;}
+        if(returnPosition!=null) {returnAfterRetreat(owner);return;}
         if(threat!=null&&now>=dog.nextIntervention) {protect();return;}
+        if(dog.act()==Act.BARK&&now<nextHostileBark-90)return;
         if(threat!=null&&!knows("sulk")&&!dog.isVehicle()) {
             // Still cross, still on the intervention cooldown: he glares and pouts instead.
             dog.setMood(Mood.SUSPICIOUS);dog.getLookControl().setLookAt(threat,30,30);
@@ -111,6 +115,15 @@ public final class Personality {
                 remember(seen,24000);
             }
         }
+        if(dog.now()>=nextHostileBark&&dog.now()>=retreatUntil&&returnPosition==null) {
+            LivingEntity hostile=nearby.stream().filter(e->e instanceof LivingEntity&&e instanceof Enemy&&dog.distanceToSqr(e)<=144&&dog.hasLineOfSight(e))
+                .map(e->(LivingEntity)e).min(Comparator.comparingDouble(dog::distanceToSqr)).orElse(null);
+            if(hostile!=null) {
+                dog.getLookControl().setLookAt(hostile,30,30);dog.setMood(Mood.ALERT);
+                if(dog.act()!=Act.BITE)dog.setAct(Act.BARK);
+                dog.voice("bark",.85F);nextHostileBark=dog.now()+120;
+            }
+        }
         while(profiles.size()>96)profiles.remove(profiles.keySet().iterator().next());
         if(owner!=null&&owner.level()==dog.level()) {
             LivingEntity attacker=owner.getLastHurtByMob();
@@ -132,19 +145,36 @@ public final class Personality {
         if(dog.distanceToSqr(threat)<Math.pow(1.7+threat.getBbWidth()*.5,2)&&dog.hasLineOfSight(threat)) {
             dog.getNavigation().stop();dog.setAct(Act.BITE);
             // Exactly one attempted hit, no melee goal, sweep, thorns or secondary damage.
-            threat.hurt(dog.damageSources().mobAttack(dog),2F);
-            dog.nextIntervention=dog.now()+900;retreatUntil=dog.now()+200;dog.setMood(Mood.RETREATING);
+            threat.hurt(dog.damageSources().mobAttack(dog),threat instanceof Enemy?10F:2F);
+            escapeFrom=threat.position();returnPosition=dog.position();exploreTarget=null;
+            dog.nextIntervention=dog.now()+900;retreatUntil=dog.now()+100;dog.setMood(Mood.RETREATING);
+            flee();
         }
     }
     private void retreat(ServerPlayer owner) {
         dog.setMood(Mood.RETREATING);
         if(dog.act().resting())dog.setAct(Act.NONE);
-        if(dog.tickCount%20!=0)return;
-        Vec3 from=threat!=null?threat.position():soundPosition!=null?soundPosition:dog.position().add(1,0,0);
+        if(dog.tickCount%10==0)flee();
+    }
+    private void flee() {
+        Vec3 from=escapeFrom!=null?escapeFrom:threat!=null?threat.position():soundPosition!=null?soundPosition:dog.position().add(1,0,0);
         Vec3 away=dog.position().subtract(from).multiply(1,0,1).normalize();
-        Vec3 dest=dog.position().add(away.scale(12));
-        if(owner!=null&&owner.level()==dog.level()&&owner.distanceToSqr(from)>dog.distanceToSqr(from))dest=owner.position();
-        walk(dest,1.8);
+        if(away.lengthSqr()<.01)away=Vec3.directionFromRotation(0,dog.getYRot()+180);
+        // Following never redirects the escape back toward the attacker.
+        Vec3 dest=dog.position().add(away.scale(10));
+        if(!dog.getNavigation().moveTo(dest.x,dest.y,dest.z,1.8)) {
+            Vec3 alternate=DefaultRandomPos.getPosAway(dog,12,4,from);
+            if(alternate!=null)dog.getNavigation().moveTo(alternate.x,alternate.y,alternate.z,1.8);
+        }
+    }
+    private void returnAfterRetreat(ServerPlayer owner) {
+        Vec3 destination=owner!=null&&owner.level()==dog.level()?owner.position():returnPosition;
+        dog.setMood(Mood.FOLLOWING_INTEREST);
+        if(dog.act().resting()||dog.act()==Act.POUT)dog.setAct(Act.NONE);
+        if(dog.distanceToSqr(destination)<9) {
+            returnPosition=null;escapeFrom=null;threat=null;dog.getNavigation().stop();
+            dog.setMood(Mood.CALM);dog.setAct(Act.LOOK_BACK);nextChoice=dog.tickCount+30;
+        } else if(dog.tickCount%10==0)walk(destination,1.3);
     }
     private boolean food(ServerPlayer owner) {
         Player offering=null;
@@ -392,3 +422,4 @@ public final class Personality {
         lastPosition=dog.position();
     }
 }
+

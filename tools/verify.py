@@ -28,6 +28,35 @@ for b in ['root' ,'body','chest','neck','head','collar','upper_jaw','lower_jaw',
 for s in ['front_left','front_right','rear_left','rear_right']:
  assert s+'_leg' in names and s+'_paw' in names
 
+# The coat is one connected manifold per anatomical shell, not overlapping primitives.
+from collections import Counter,defaultdict
+assert len(rig['coats'])==2
+for coat in rig['coats']:
+ assert set(coat['bones'])<=names
+ count=len(coat['vertices']);surface=coat['surface_vertices']
+ assert count==len(coat['normals'])==len(coat['weights'])==len(coat['shade'])
+ edges=Counter();neighbors=defaultdict(set)
+ for f in coat['faces']:
+  assert len(set(f))==3 and all(0<=i<count for i in f)
+  if max(f)<surface:
+   for a,b in zip(f,f[1:]+f[:1]):
+    edges[tuple(sorted((a,b)))]+=1;neighbors[a].add(b);neighbors[b].add(a)
+ assert all(n==2 for n in edges.values()),'coat surface has an open seam'
+ seen=set();pending=[0]
+ while pending:
+  i=pending.pop()
+  if i in seen:continue
+  seen.add(i);pending.extend(neighbors[i]-seen)
+ assert len(seen)==surface,'coat consists of disconnected pieces'
+ for point,normal,weights in zip(coat['vertices'],coat['normals'],coat['weights']):
+  assert all(math.isfinite(v) for v in point+normal)
+  assert abs(sum(v*v for v in normal)-1)<.001
+  assert 1<=len(weights)<=4 and abs(sum(w for _,w in weights)-1)<.00001
+  assert all(0<=j<len(coat['bones']) and w>=0 for j,w in weights)
+ # Hair tips inherit exactly the root weights, so they cannot slide off in motion.
+ for start in range(surface,count,4):
+  assert all(coat['weights'][i]==coat['weights'][start] for i in range(start,start+4))
+
 # ---- Rest-pose containment ----------------------------------------------------------------
 # Sadaharu reads as cute only while his mouth is genuinely shut: no dark cavity, tongue or lid
 # may be visible until an animation opens it. That is geometry, so it is checked as geometry.
@@ -172,7 +201,7 @@ assert 'setCanceled(true)' not in handler('LivingAttackEvent e)'),'the event bus
 assert 'setCanceled(true)' not in handler('LivingDamageEvent e)'),'the event bus still cancels all damage to him'
 assert 'setHealth(dog.getMaxHealth())' not in handler('LivingDeathEvent e)'),'death still heals him to full instead of putting him down'
 assert 'collapse()' in handler('LivingDeathEvent e)'),'a death that slips past hurt() must put him down'
-assert 'e.setAmount(Math.min(2,Math.max(0,e.getAmount())))' in events,'the two-health cap on the damage he deals is gone'
+assert 'Enemy&&e.getAmount()>0?10F:Math.min(2,Math.max(0,e.getAmount()))' in events,'hostile hits must deal five hearts while non-hostile hits stay gentle'
 assert 'setAct(Act.DOWNED)' in dogsrc,'nothing ever puts him down'
 for guard in ('isVehicle()||downed>0','downed<=0&&e instanceof Player','downed<=0&&!isVehicle()','home==null||downed>0'):
  assert guard in dogsrc,'a downed Sadaharu is still reachable: '+guard
@@ -190,7 +219,7 @@ assert 'dog.following' in personality,'the follow instruction never reaches his 
 assert 'extends Wolf' not in src
 assert src.count('new KeyMapping(')==1
 assert 'SpawnEggItem' not in src
-assert '2F)' in src and 'nextIntervention=dog.now()+900' in src
+assert 'threat instanceof Enemy?10F:2F' in src and 'nextIntervention=dog.now()+900' in src
 assert 'addRegionTicket' in src and 'removeRegionTicket' in src
 assert 'getDataStorage().computeIfAbsent' in src
 assert (r/'src/main/resources/assets/hexsadaharu/textures/item/kibble.png').exists()
@@ -229,3 +258,4 @@ for act in ('HEAD_BITE','LICK_PLAYER','POUT','BARK'):
  assert 'case '+act in model or re.search(r'case [A-Z_, ]*\b'+act+r'\b',model),'SadaharuModel does not animate Act.'+act
 
 print('Resource, curved rig, closed-mouth, uniqueness, voice, interaction, control and damage contracts passed.')
+

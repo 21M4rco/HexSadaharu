@@ -34,7 +34,7 @@ body=bone('body','root',[0,-25,3]);blob(body,[0,0,0],[24,26,30],layers=7,power=2
 chest=bone('chest','body',[0,-1,-10]);blob(chest,[0,0,0],[24,28,15],layers=7,power=2.3)
 neck=bone('neck','chest',[0,-6,-3]);blob(neck,[0,-1,0],[22,18,15],layers=6,power=2.4)
 # The collar is a band following the throat, laid out on an ellipse so it never becomes a flat plate.
-collar=bone('collar','neck',[0,1.4,0]);RX,RZ,CH,CT=11.8,7.9,2.1,.65
+collar=bone('collar','neck',[0,-1.7,-.1],(40,0,0));RX,RZ,CH,CT=12.2,8.7,1.8,.55
 verts=[];faces=[]
 for j in range(32):
  th=2*math.pi*j/32
@@ -107,7 +107,20 @@ for j in range(7):
  b=bone('chest_fluff_'+str(j),'chest',[u*6.3,7.-abs(u)*2.5,-6.6],(0,0,-u*10))
  wedge(b,[[-1.65,-2.4,-.3],[1.65,-2.4,-.3],[0,3.0-abs(u)*.7,-.1],[0,-2.4,1.7]],
        [[0,2,1],[0,3,2],[1,2,3],[0,1,3]])
-(A/'models/entity/sadaharu.json').write_text(json.dumps({'texture_size':[512,512],'palette':colors,'bones':rig},indent=2))
+# Enlarge the entire head hierarchy together, including the expression and jaw rig.
+head_family={'head'}
+for b in rig:
+ if b['parent'] in head_family:head_family.add(b['name'])
+ if b['name'] not in head_family:continue
+ if b['name']=='head':b['pivot'][1]-=1.0;b['pivot'][2]-=.6
+ else:b['pivot']=[round(v*1.12,5) for v in b['pivot']]
+ for m in b.get('meshes',[]):
+  if 'vertices' in m:m['vertices']=[[round(v*1.12,5) for v in p] for p in m['vertices']]
+  else:
+   for key in ('center','size'):m[key]=[round(v*1.12,5) for v in m[key]]
+from sculpt_coat import sculpt
+coats=sculpt(rig)
+(A/'models/entity/sadaharu.json').write_text(json.dumps({'texture_size':[512,512],'palette':colors,'bones':rig,'coats':coats},separators=(',',':')))
 im=Image.new('RGBA',(512,512)); d=ImageDraw.Draw(im)
 for i,c in enumerate(colors):x=(i%4)*128;y=(i//4)*128;d.rectangle((x,y,x+127,y+127),fill=c)
 im.save(A/'textures/entity/sadaharu.png')
@@ -133,3 +146,4 @@ for tag,vals in [('meats',[{'id':'forge:raw_meats','required':False},{'id':'forg
 p=D/'hexsadaharu/recipes/kibble.json';p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps({'type':'minecraft:crafting_shapeless','ingredients':[{'tag':'hexsadaharu:meats'},{'tag':'hexsadaharu:fishes'},{'item':'minecraft:wheat'}],'result':{'item':'hexsadaharu:kibble','count':4}},indent=2))
 lang=json.loads((A/'lang/en_us.json').read_text());lang.update({'subtitles.hexsadaharu.'+k:'Sadaharu '+k.replace('_',' ') for k in ['bark','excited','deep_bark','whine','growl','pant','sleep','yawn','eat','land','step']});(A/'lang/en_us.json').write_text(json.dumps(lang,indent=2))
 print(len(rig),'bones;',sum(len(b.get('meshes',[])) for b in rig),'rounded meshes')
+

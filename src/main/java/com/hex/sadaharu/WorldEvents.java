@@ -43,7 +43,10 @@ public final class WorldEvents {
         data.capture(dog);
     }
     @SubscribeEvent(priority=EventPriority.HIGHEST) public void attack(LivingAttackEvent e) {if(e.getEntity() instanceof Sadaharu dog&&e.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity l)dog.personality.threat(l);}
-    @SubscribeEvent(priority=EventPriority.LOWEST) public void damage(LivingDamageEvent e) {if(!(e.getEntity() instanceof Sadaharu)&&e.getSource().getEntity() instanceof Sadaharu)e.setAmount(Math.min(2,Math.max(0,e.getAmount())));}
+    @SubscribeEvent(priority=EventPriority.LOWEST) public void damage(LivingDamageEvent e) {
+        if(!(e.getEntity() instanceof Sadaharu)&&e.getSource().getEntity() instanceof Sadaharu)
+            e.setAmount(e.getEntity() instanceof net.minecraft.world.entity.monster.Enemy&&e.getAmount()>0?10F:Math.min(2,Math.max(0,e.getAmount())));
+    }
     @SubscribeEvent(priority=EventPriority.HIGHEST) public void death(LivingDeathEvent e) {if(e.getEntity() instanceof Sadaharu dog){e.setCanceled(true);dog.collapse();}}
     @SubscribeEvent public void hurt(LivingHurtEvent e) {
         if(e.getEntity() instanceof ServerPlayer player&&e.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity attacker) {
@@ -113,3 +116,4 @@ public final class WorldEvents {
     }
     @SubscribeEvent public void stop(ServerStoppedEvent e) {calls.clear();rate.clear();}
 }
+

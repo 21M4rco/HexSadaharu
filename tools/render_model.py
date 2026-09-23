@@ -14,8 +14,9 @@ def posed(pose,name,p,r):
  if pose=='Sitting':
   if name=='body':p+=[0,6,1.5];r[0]-=.3
   if name=='neck':r[0]+=.3
+  if name=='head':p[1]-=1.5
   if name.startswith('front_') and name.endswith('_leg'):p[1]-=4;r[0]+=.3
-  if name.startswith('rear_') and name.endswith('_leg'):r[0]-=1.1
+  if name.startswith('rear_') and name.endswith('_leg'):r[0]-=1.1;r[2]+=-.18 if name=='rear_left_leg' else .18
   if name.startswith('rear_') and name.endswith('_paw'):r[0]+=1.3
  if pose=='Mouth open':
   if name=='lower_jaw':r[0]+=.95
@@ -41,7 +42,11 @@ def render(pose,azim):
   wa=((b[1]-c[1])*(xx-c[0])+(c[0]-b[0])*(yy-c[1]))/den
   wb=((c[1]-a[1])*(xx-c[0])+(a[0]-c[0])*(yy-c[1]))/den;wc=1-wa-wb
   z=wa*a[2]+wb*b[2]+wc*c[2];d=depth[ymin:ymax+1,xmin:xmax+1];mask=(wa>=0)&(wb>=0)&(wc>=0)&(z>d)
-  d[mask]=z[mask];bg[ymin:ymax+1,xmin:xmax+1][mask]=col
+  d[mask]=z[mask]
+  if np.ndim(col)==2:
+   shaded=wa[:,:,None]*col[0]+wb[:,:,None]*col[1]+wc[:,:,None]*col[2]
+   bg[ymin:ymax+1,xmin:xmax+1][mask]=np.clip(shaded[mask],0,255).astype(np.uint8)
+  else:bg[ymin:ymax+1,xmin:xmax+1][mask]=col
  for b in rig:
   p,r=posed(pose,b['name'],np.array(b['pivot'],float),np.radians(np.array(b['rotation'],float)))
   n=b['name']
@@ -88,13 +93,32 @@ def render(pose,azim):
     shade=.77+.23*max(0,np.dot(normal/length,light));col=(base*shade).astype(np.uint8)
     triangle(vs[:3],col)
     if len(vs)==4:triangle([vs[0],vs[2],vs[3]],col)
+ # The same welded vertices and joint weights consumed by SkinnedCoat in Minecraft.
+ from sculpt_coat import matrix
+ bind={}
+ for b in rig:bind[b['name']]=(bind[b['parent']] if b['parent'] else np.eye(4))@matrix(b)
+ for coat in DOC.get('coats',[]):
+  pts=np.array(coat['vertices']);ns=np.array(coat['normals']);out=np.zeros_like(pts);norm=np.zeros_like(ns)
+  joints=np.array(coat['weights'])[:,:,0].astype(int);weights=np.array(coat['weights'])[:,:,1]
+  for j,name in enumerate(coat['bones']):
+   transform=matrices[name]@np.linalg.inv(bind[name]);w=np.sum(np.where(joints==j,weights,0),axis=1)
+   out+=(pts@transform[:3,:3].T+transform[:3,3])*w[:,None]
+   norm+=(ns@np.linalg.inv(transform[:3,:3]))*w[:,None]
+  out=np.stack([out[:,0],-out[:,2],24-out[:,1]],axis=1)
+  norm=np.stack([norm[:,0],-norm[:,2],-norm[:,1]],axis=1);norm/=np.linalg.norm(norm,axis=1)[:,None]
+  light=np.array([-.3,.6,1.]);light/=np.linalg.norm(light)
+  shade=(.73+.27*np.maximum(0,norm@light))*np.array(coat['shade'])
+  base=np.array([250,251,252]);cols=shade[:,None]*base
+  for f in coat['faces']:triangle(out[f],cols[f])
  return Image.fromarray(bg)
 VIEWS=[('Front',90),('Three-quarter',62),('Side',0),('Rear',-90),('Sitting',65),('Mouth open',75),('Blink',82),('Bounding',30)]
 canvas=Image.new('RGB',(W*4,80+H*2),(218,226,236));draw=ImageDraw.Draw(canvas)
 fontpath='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+if not Path(fontpath).exists():fontpath='C:/Windows/Fonts/arial.ttf'
 font=ImageFont.truetype(fontpath,24);title=ImageFont.truetype(fontpath,32)
-draw.text((45,23),'SADAHARU  /  actual rounded rig',fill='#27384a',font=title)
+draw.text((45,23),'SADAHARU  /  continuous skinned coat',fill='#27384a',font=title)
 for i,(pose,az) in enumerate(VIEWS):
  x=(i%4)*W;y=72+(i//4)*H;canvas.paste(render(pose,az),(x,y));draw.text((x+22,y+6),pose,fill='#344356',font=font)
 (ROOT/'docs').mkdir(exist_ok=True);canvas.save(ROOT/'docs/model-review.png')
 print('docs/model-review.png',canvas.size)
+

@@ -14,7 +14,7 @@ minecraft {
             property 'hexsadaharu.review', project.hasProperty('visualReview') ? 'true' : 'false'
             // FML's early splash negotiates its own GL context and wedges on headless software rasterisers.
             property 'fml.earlyprogresswindow', 'false'
-            args '--width', '1500', '--height', '1000'
+            args '--width', project.hasProperty('visualReview') ? '2000' : '1500', '--height', project.hasProperty('visualReview') ? '1200' : '1000'
             workingDirectory project.file('run'); mods { hexsadaharu { source sourceSets.main } }
         }
         server { workingDirectory project.file('run'); args '--nogui'; mods { hexsadaharu { source sourceSets.main } } }
@@ -34,3 +34,4 @@ tasks.register('sourceZip', Zip) {
     destinationDirectory = layout.buildDirectory.dir('distributions')
     from(projectDir) { exclude '.git/**', '.gradle/**', 'build/**', 'run*/**', '*.zip', '__pycache__/**' }
 }
+
