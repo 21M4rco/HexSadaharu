@@ -15,10 +15,15 @@ final class RoundedMesh {
         u=(material%4*128+64)/512F;v=(material/4*128+64)/512F;
         if(shape.has("vertices")) {
             JsonArray points=shape.getAsJsonArray("vertices");
+            Vector3f center=new Vector3f();
+            for(JsonElement e:points){JsonArray a=e.getAsJsonArray();center.add(n(a,0),n(a,1),n(a,2));}
+            center.div(points.size());
             for(JsonElement e:shape.getAsJsonArray("faces")) {
                 JsonArray f=e.getAsJsonArray();Vector3f[] p=new Vector3f[4];
                 for(int i=0;i<4;i++){JsonArray a=points.get(f.get(Math.min(i,f.size()-1)).getAsInt()).getAsJsonArray();p[i]=new Vector3f(n(a,0),n(a,1),n(a,2));}
                 Vector3f normal=new Vector3f(p[1]).sub(p[0]).cross(new Vector3f(p[2]).sub(p[0])).normalize();
+                float facing=normal.dot(new Vector3f(p[0]).sub(center));
+                if(facing<-.0001F||(Math.abs(facing)<.0001F&&normal.z>0))normal.negate();
                 for(Vector3f q:p)vertices.add(new Vertex(q.x/16,q.y/16,q.z/16,normal.x,normal.y,normal.z));
             }
             return;

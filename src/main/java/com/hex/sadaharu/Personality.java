@@ -34,7 +34,7 @@ public final class Personality {
     public boolean ownerGesture(Player player,Act gesture) {
         if(!dog.ownedBy(player)||dog.downed>0||dog.isVehicle()||!dog.onGround()||dog.isInWater()||dog.distanceToSqr(player)>100||threat!=null||dog.now()<retreatUntil)return false;
         if(gesture!=Act.PETTED&&gesture!=Act.PLAY_BOW)return false;
-        if(knows("owner_gesture"))return true;
+        if(dog.act()==gesture&&dog.gagTarget()==player.getId())return true;
         exploreTarget=null;dog.homebound=0;interest=player;dog.gagTarget(player.getId());
         dog.getNavigation().stop();dog.setMood(Mood.PLAYFUL);dog.setAct(gesture);
         dog.voice(gesture==Act.PETTED?"pant":"excited",.35F);
