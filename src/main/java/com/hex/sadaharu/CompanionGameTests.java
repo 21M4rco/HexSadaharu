@@ -66,7 +66,7 @@ public final class CompanionGameTests {
         }
         // Same open menu must reflect server toggles; simulate the signed-short wire slots.
         var player=h.makeMockPlayer();player.setPos(dog.getX(),dog.getY(),dog.getZ());
-        dog.setOwner(player.getUUID());dog.setOnGround(true);dog.setAct(Act.NONE);
+        player.setUUID(owner);dog.setOnGround(true);dog.setAct(Act.NONE);
         var menu=new SadaharuMenu(31,player.getInventory(),dog);
         var mirror=new SadaharuMenu(31,player.getInventory(),(Sadaharu)null);
         menu.addSlotListener(new net.minecraft.world.inventory.ContainerListener(){
@@ -89,7 +89,7 @@ public final class CompanionGameTests {
         h.assertTrue(menu.clickMenuButton(player,6)&&dog.act()==Act.PETTED,"Pet button starts the synchronized petting response");
         dog.memories.remember("owner_gesture",dog.now(),0);
         h.assertTrue(menu.clickMenuButton(player,7)&&dog.act()==Act.PLAY_BOW,"Play button starts an owner-facing invitation");
-        dog.setOwner(owner);dog.home=p;dog.setAct(Act.NONE);dog.gagTarget(-1);
+        player.setUUID(UUID.randomUUID());dog.home=p;dog.setAct(Act.NONE);dog.gagTarget(-1);
         h.assertTrue(!menu.clickMenuButton(player,1),"A non-owner cannot clear the home through a stale menu");
         dog.following=true;
         h.assertTrue(dog.sendHome()&&!dog.following,"Sending him home cancels following, which is the opposite instruction");

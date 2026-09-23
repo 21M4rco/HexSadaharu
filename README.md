@@ -27,7 +27,7 @@ The overworld SavedData record reserves his UUID even while unloaded. Calling ti
 
 ## Build and checks
 
-**Actions → Build and verify Sadaharu** compiles and packages the JAR/source ZIP, validates resources, runs Forge GameTests and renders the model through the real Minecraft client. It publishes two artifacts: **HexSadaharu-Forge-1.20.1**, which holds the mod jar alone so the download unpacks straight to `hexsadaharu-1.0.0.jar` with no folders around it, and **HexSadaharu-diagnostics** for the source ZIP, logs and render. Before uploading, the run opens the jar and fails if it is not exactly one file containing `mods.toml`, the entity and model classes, the rig, the sounds and his bark. No compilation was performed in the authoring workspace.
+**Actions → Build and verify Sadaharu** compiles and packages the JAR/source ZIP, validates resources, runs Forge GameTests and renders the model through the real Minecraft client. It publishes two artifacts: **HexSadaharu-Forge-1.20.1**, which holds the mod jar alone so the download unpacks straight to `hexsadaharu-1.1.0.jar` with no folders around it, and **HexSadaharu-diagnostics** for the source ZIP, logs and render. Before uploading, the run opens the jar and fails if it is not exactly one file containing `mods.toml`, the entity and model classes, the rig, the sounds and his bark. No compilation was performed in the authoring workspace.
 
 `tools/verify.py` validates curved surfaces and reconstructs the rest pose to check that the mouth interior is enclosed by fur. Closed-eye marks are hidden until the blink completes. Forge GameTests cover menu synchronization, full home-coordinate packets, pet/play actions and stale non-owner commands as well as the existing identity and recovery checks.
 
