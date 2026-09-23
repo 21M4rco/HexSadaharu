@@ -24,7 +24,8 @@ public final class ModelReviewScreen extends Screen {
         float[] angles={0,90,180,25,15,55};
         int cellW=width/3,cellH=(height-30)/2;
         for(int i=0;i<6;i++) {
-            model.root().getAllParts().forEach(ModelPart::resetPose);
+            model.root().getAllParts().forEach(part->{part.resetPose();part.visible=true;});
+            model.part("eyelid_left").visible=false;model.part("eyelid_right").visible=false;model.part("closed_mouth_mark").visible=i!=4;
             if(i==3){model.part("body").y+=6;model.part("body").xRot-=.3F;model.part("neck").xRot+=.3F;
                 for(String s:new String[]{"front_left","front_right"}){model.part(s+"_leg").y-=4;model.part(s+"_leg").xRot+=.3F;}
                 for(String s:new String[]{"rear_left","rear_right"}){model.part(s+"_leg").xRot-=1.1F;model.part(s+"_paw").xRot+=1.3F;}}
@@ -36,7 +37,7 @@ public final class ModelReviewScreen extends Screen {
             float scale=Math.min(cellW/4.8F,cellH/4F);p.scale(scale,scale,scale);
             p.mulPose(Axis.XP.rotationDegrees(-10));p.mulPose(Axis.YP.rotationDegrees(180+angles[i]));
             com.mojang.blaze3d.systems.RenderSystem.setShaderLights(new org.joml.Vector3f(-.3F,-1F,.8F).normalize(),new org.joml.Vector3f(.6F,-.4F,-.5F).normalize());
-            model.root().render(p,g.bufferSource().getBuffer(RenderType.entityCutoutNoCull(HexSadaharu.id("textures/entity/sadaharu.png"))),15728880,OverlayTexture.NO_OVERLAY);
+            model.renderToBuffer(p,g.bufferSource().getBuffer(RenderType.entityCutoutNoCull(HexSadaharu.id("textures/entity/sadaharu.png"))),15728880,OverlayTexture.NO_OVERLAY,1,1,1,1);
             g.flush();p.popPose();
         }
         frames++;

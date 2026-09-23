@@ -22,80 +22,87 @@ def k_at(h,layers,power,y):
  """Profile factor of the layer holding local height y, measured from the blob centre."""
  return k_of(layers,power,min(layers-1,max(0,int((y+h/2)/h*layers))))
 def blob(b,c,s,mat=0,layers=6,power=2.6,taper=(1,1),flat=False):
- # A stack of superellipse layers: the silhouette curves away at top and bottom instead of stepping.
- x,y,z=c;w,h,d=s
- for i in range(layers):
-  t0=i/layers;t1=(i+1)/layers
-  k=k_of(layers,power,i);g=taper[0]+(taper[1]-taper[0])*((t0+t1)*.5)
-  slab(b,x,y-h/2+h*t0,z,w*k*g,h*(t1-t0),d*g if flat else d*k*g,mat)
+ # Actual curved surfaces, baked once by RoundedMesh, not overlapping cuboid slabs.
+ b.setdefault('meshes',[]).append(dict(center=list(c),size=list(s),material=mat,
+     power=min(power,2.25),taper=list(taper),segments=24 if max(s)>18 else 12,rings=16 if max(s)>18 else 8))
+
+def wedge(b,vertices,faces,mat=0):
+ b.setdefault('meshes',[]).append(dict(vertices=vertices,faces=faces,material=mat))
 
 root=bone('root',None,[0,24,0])
-body=bone('body','root',[0,-19,3]);blob(body,[0,0,0],[24,22,30],layers=7,power=2.2)
-chest=bone('chest','body',[0,-1,-10]);blob(chest,[0,0,0],[25,23,15],layers=7,power=2.3)
+body=bone('body','root',[0,-25,3]);blob(body,[0,0,0],[24,26,30],layers=7,power=2.2)
+chest=bone('chest','body',[0,-1,-10]);blob(chest,[0,0,0],[24,28,15],layers=7,power=2.3)
 neck=bone('neck','chest',[0,-6,-3]);blob(neck,[0,-1,0],[22,18,15],layers=6,power=2.4)
 # The collar is a band following the throat, laid out on an ellipse so it never becomes a flat plate.
-collar=bone('collar','neck',[0,1.4,0]);RX,RZ,CH,CT=12.9,8.2,2.9,1.7
-for j in range(12):
- th=2*math.pi*j/12
- seg=bone('collar_'+str(j),'collar',[math.sin(th)*RX,0,-math.cos(th)*RZ],(0,math.degrees(math.atan2(-RZ*math.sin(th),RX*math.cos(th))),0))
- box(seg,[-3.6,-CH/2,-CT/2],[7.2,CH,CT],5)
-HY,HH,HD,HZ,HP,HL=-6.,19.,21.,-2.5,2.35,7
+collar=bone('collar','neck',[0,1.4,0]);RX,RZ,CH,CT=11.8,7.9,2.1,.65
+verts=[];faces=[]
+for j in range(32):
+ th=2*math.pi*j/32
+ for rx,rz,y in [(RX,RZ,-CH/2),(RX,RZ,CH/2),(RX-CT,RZ-CT,CH/2),(RX-CT,RZ-CT,-CH/2)]:verts.append([math.sin(th)*rx,y,-math.cos(th)*rz])
+for j in range(32):
+ for k in range(4):faces.append([j*4+k,((j+1)%32)*4+k,((j+1)%32)*4+(k+1)%4,j*4+(k+1)%4])
+wedge(collar,verts,faces,5)
+HY,HH,HD,HZ,HP,HL=-6.,21.,21.,-2.5,2.15,7
 head=bone('head','neck',[0,-5,-3]);blob(head,[0,HY,HZ],[27,HH,HD],layers=HL,power=HP)
-def face(y): return HZ-HD/2*k_at(HH,HL,HP,y-HY)   # head-local z of the face surface at height y
+def face(y,x=0): return HZ-HD/2*max(0,1-abs((y-HY)/(HH/2))**HP-abs(x/13.5)**HP)**(1/HP)   # head-local z of the face surface at height y
 for side in [-1,1]:
  lr='left' if side==1 else 'right'
- c=bone('cheek_'+str(side),'head',[side*10,-1,-3.5],(0,0,-side*6));blob(c,[0,0,0],[8.5,12,13],layers=5,power=2.3)
+ c=bone('cheek_'+str(side),'head',[side*9,-1.4,-4.5],(0,0,-side*6));blob(c,[0,0,0],[9.5,10,13],layers=5,power=2.3)
  for i in range(2):
   f=bone('cheek_tuft_'+str(side)+'_'+str(i),c['name'],[side*2.6,1.5+i*3.6,1.5],(0,0,side*(14+i*10)))
-  box(f,[-1.4,-2.4,-2.4],[3.4,5.2,4.8])
- # Continuous pink inner panel; per-layer strips banded the ear like a candy cane.
- ear=bone('ear_'+lr,'head',[side*8.5,-13.,-1.5],(-8,0,side*23))
- for j in range(6):
-  w=9.-j*1.3;d=4.8-j*.4
-  box(ear,[-w/2,-j*1.4-1.5,-d/2],[w,1.45,d])
-  if j<5: box(ear,[-max(1.2,w-3.)/2,-j*1.4-1.5,-d/2-.26],[max(1.2,w-3.),1.45,.3],2)
- # Round eye: stacked bands and one glint, no pale bar across the lower lid.
- eye=bone('eye_'+lr,'head',[side*6.8,-3.6,face(-3.6)+.25])
- for i,w in enumerate([3.6,5.4,6.2,6.2,5.4,3.6]): box(eye,[-w/2,-3.+i,-.55],[w,1.,.6],3)
- box(eye,[-2.,-2.1,-.77],[1.7,1.9,.3],10);box(eye,[1.,.5,-.77],[.75,.75,.28],10)
- # A real lid, parked folded back inside the skull and swept down to blink.
- lid=bone('eyelid_'+lr,'head',[side*6.8,-7.,face(-7.)+.45],(126,0,0))
- box(lid,[-3.5,0,-.95],[7.,6.9,1.])
- for x,y,w in [(-3.5,6.05,2.2),(-1.5,6.3,3.,),(1.3,6.05,2.2)]: box(lid,[x,y,-1.],[w,.55,1.05],4)
- # Brows sit low and close over the eye; high steep arches read as horns.
- brow=bone('brow_'+lr,'head',[side*6.8,-7.6,face(-7.6)+.1])
- for j in range(3):
-  t=j/2;seg=bone('brow_'+str(side)+'_'+str(j),brow['name'],[(t-.5)*5.,-math.sin(t*math.pi)*1.25,0],(0,0,math.degrees(math.atan(-math.cos(t*math.pi)*.55))))
-  box(seg,[-1.35,-.65,-.6],[2.7,1.3,1.])
-  seg['cubes'][-1]['material']=4
- box(brow,[-side*1.7-1.05,-1.,-.65],[2.1,2.1,1.05],4)
+  wedge(f,[[-1.5,-2,-1.5],[1.5,-2,-1.5],[side*1.5,2.2,0],[0,-2,1.8]],[[0,2,1],[0,3,2],[1,2,3],[0,1,3]])
+ # Clean triangular ears with soft white rims and a continuous pink inset.
+ ear=bone('ear_'+lr,'head',[side*9.2,-13.,-1.5],(-8,0,side*18))
+ wedge(ear,[[-5,0,-2],[5,0,-2],[.3,-10,-.6],[-4.2,0,2.5],[4.2,0,2.5],[.3,-9,.9]],
+       [[0,2,1],[3,4,5],[0,3,5,2],[1,2,5,4],[0,1,4,3]])
+ wedge(ear,[[-3.25,-1.2,-2.05],[3.25,-1.2,-2.05],[.3,-8,-.99]],[[0,2,1]],2)
+ # Shallow rounded eyes follow the cheek curvature rather than floating on a flat face.
+ eye=bone('eye_'+lr,'head',[side*6.5,-4.,face(-4.,6.5)-.18],(0,-side*22,0))
+ blob(eye,[0,0,0],[5.8,6.0,1.8],3,power=2)
+ blob(eye,[-1.0,-1.3,-.84],[1.65,1.8,.45],10,power=2)
+ blob(eye,[1.1,1.0,-.85],[.6,.65,.3],10,power=2)
+ # Closed-eye smile is hidden at rest; eye compression handles intermediate blinks.
+ lid=bone('eyelid_'+lr,'head',eye['pivot'],(0,-side*22,0))
+ for j in range(5):
+  x=(j-2)*.96
+  blob(lid,[x,.2+abs(j-2)*.15,-.88],[1.2,.4,.3],4,power=2)
+ brow=bone('brow_'+lr,'head',[side*6.3,-9.1,face(-9.1,6.3)-.1],(0,-side*20,0))
+ for j in range(5):
+  t=j/4
+  blob(brow,[(t-.5)*4.7,-math.sin(t*math.pi)*1.0,0],[1.6,1.15,.75],4,power=2)
+ blob(brow,[-side*1.6,.1,-.08],[1.7,1.85,.8],4,power=2)
 # Short soft muzzle. While the jaw is shut nothing dark, and no tooth, is exposed.
 MY,MH,MD,MZ,MPW,ML=1.2,5.2,8.,-2.6,2.4,5
 upper=bone('upper_jaw','head',[0,0,-9]);blob(upper,[0,MY,MZ],[11.8,MH,MD],layers=ML,power=MPW)
-def snout(y): return MZ-MD/2*k_at(MH,ML,MPW,y-MY)  # upper-jaw-local z of the muzzle surface
-for x,y,w in [(-1.75,2.35,1.05),(-.75,2.15,1.5),(.7,2.35,1.05)]: box(upper,[x,y,snout(y)-.42],[w,.4,.44],4)
-nose=bone('nose','upper_jaw',[0,.55,snout(.55)+.05])
-box(nose,[-1.3,-.95,-.45],[2.6,.8,.9],4);box(nose,[-2.2,-.35,-.62],[4.4,1.,1.1],4);box(nose,[-1.6,.5,-.45],[3.2,.85,.9],4)
-box(nose,[-1.05,-.72,-.72],[1.8,.35,.28],9)
+def snout(y): return MZ-MD/2*max(0,1-abs((y-MY)/(MH/2))**2.25)**(1/2.25)  # upper-jaw-local z of the muzzle surface
+mark=bone('closed_mouth_mark','upper_jaw',[0,0,0])
+for j in range(9):
+ x=(j-4)*.43;y=2.15+.32*math.sin(abs(x)/1.72*math.pi)
+ blob(mark,[x,y,snout(y)-.09],[.62,.28,.3],4,power=2)
+nose=bone('nose','upper_jaw',[0,.05,snout(.05)-.03])
+wedge(nose,[[-1.9,-.55,0],[1.9,-.55,0],[0,1.35,-.1],[-1.4,-.25,-.8],[1.4,-.25,-.8],[0,1.0,-.6]],
+ [[0,1,4,3],[3,4,5],[0,3,5,2],[1,2,5,4],[0,2,1]],4)
+blob(nose,[-.55,-.25,-.81],[1.,.35,.18],9,power=2)
 jaw=bone('lower_jaw','head',[0,2.4,-7]);blob(jaw,[0,.9,-2.6],[8.,3.,6.6],layers=4,power=2.4)
-box(jaw,[-2.6,-.85,-5.6],[5.2,.24,4.4],6)                                   # mouth floor, sealed inside the muzzle at rest
-tongue=bone('tongue','lower_jaw',[0,-1.25,-3.5]);blob(tongue,[0,0,-.9],[5.6,.8,4.4],mat=7,layers=3,power=2.3)
+blob(jaw,[0,-.5,-3.2],[4.5,.18,3.6],6,power=2)                                   # mouth floor, sealed inside the muzzle at rest
+tongue=bone('tongue','lower_jaw',[0,-.6,-3.1]);blob(tongue,[0,0,-.9],[4.4,.6,3.4],mat=7,layers=3,power=2.3)
 for name,x,z in [('front_left',8,-10),('front_right',-8,-10),('rear_left',8,11),('rear_right',-8,11)]:
  # Furry shoulder tapering into a slim ankle, instead of a straight column.
- leg=bone(name+'_leg','body',[x,5,z]);blob(leg,[0,4.6,0],[8.8,12,8.8],layers=5,power=2.4,taper=(1.16,.8))
- paw=bone(name+'_paw',leg['name'],[0,10,0]);blob(paw,[0,2.,-1.2],[9.4,4.2,10.4],layers=4,power=2.4)
- for i in [-1,0,1]: box(paw,[i*2.5-1.,1.3,-6.4],[2.,1.9,1.2])
-for i,(p,piv,rot,size) in enumerate([('body',[0,-5,14],[48,0,0],[10.5,10.5,10]),('tail_0',[0,0,6.5],[34,0,0],[9.4,9.4,8.5]),('tail_1',[0,0,5.5],[36,0,0],[8.2,8.2,7.5]),('tail_2',[0,0,4.5],[26,0,0],[6.4,6.4,6.5])]):
+ leg=bone(name+'_leg','body',[x,5,z]);blob(leg,[0,7.8,0],[8.8 if name.startswith('front') else 11,18,9.2],layers=5,power=2.4,taper=(1.16,.8))
+ paw=bone(name+'_paw',leg['name'],[0,16,0]);blob(paw,[0,2.,-1.2],[9.4,4.2,10.4],layers=4,power=2.4)
+ for i in [-1,0,1]: blob(paw,[i*2.3,2.,-5.25],[2.8,2.3,2.1],power=2)
+for i,(p,piv,rot,size) in enumerate([('body',[0,-5,14],[48,0,0],[10.5,10.5,13]),('tail_0',[0,0,6.5],[34,0,0],[9.4,9.4,11.5]),('tail_1',[0,0,5.5],[36,0,0],[8.2,8.2,10.5]),('tail_2',[0,0,4.5],[26,0,0],[6.4,6.4,8.5])]):
  b=bone('tail_'+str(i),p,piv,rot);blob(b,[0,0,size[2]*.3],size,layers=5,power=2.3,flat=True)
 # One continuous ruff along a smooth curve; the old ladder of tabs read as a staircase.
-for j in range(9):
- u=(j-4)/4.
- b=bone('chest_fluff_'+str(j),'chest',[u*8.2,3.+u*u*3.,-6.6-abs(u)*.4],(0,0,u*20))
- box(b,[-2.1,-3.,-1.5],[4.2,6.,3.])
+ruff=bone('chest_ruff','chest',[0,2,-5.6]);blob(ruff,[0,0,0],[18,19,5],power=2,taper=(1,.45))
+for j in range(7):
+ u=(j-3)/3.
+ b=bone('chest_fluff_'+str(j),'chest',[u*7.5,8.-abs(u)*3.,-6.0],(0,0,u*20))
+ blob(b,[0,0,0],[3.8,5.,2.8],power=2,taper=(1.1,.35))
 for side in [-1,1]:
  for j in range(3):
   b=bone('belly_fluff_'+str(side)+'_'+str(j),'body',[side*9.4,7.6,j*6.5-5],(0,0,side*22))
-  box(b,[-2.2,-1.4,-2.6],[4.4,5.2,5.2])
+  blob(b,[0,1,0],[4.8,6.,5.5],power=2,taper=(1,.35))
 (A/'models/entity/sadaharu.json').write_text(json.dumps({'texture_size':[512,512],'palette':colors,'bones':rig},indent=2))
 im=Image.new('RGBA',(512,512)); d=ImageDraw.Draw(im)
 for i,c in enumerate(colors):x=(i%4)*128;y=(i//4)*128;d.rectangle((x,y,x+127,y+127),fill=c)
@@ -121,4 +128,4 @@ for tag,vals in [('meats',[{'id':'forge:raw_meats','required':False},{'id':'forg
  p.write_text(json.dumps({'replace':False,'values':vals},indent=2))
 p=D/'hexsadaharu/recipes/kibble.json';p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps({'type':'minecraft:crafting_shapeless','ingredients':[{'tag':'hexsadaharu:meats'},{'tag':'hexsadaharu:fishes'},{'item':'minecraft:wheat'}],'result':{'item':'hexsadaharu:kibble','count':4}},indent=2))
 lang=json.loads((A/'lang/en_us.json').read_text());lang.update({'subtitles.hexsadaharu.'+k:'Sadaharu '+k.replace('_',' ') for k in ['bark','excited','deep_bark','whine','growl','pant','sleep','yawn','eat','land','step']});(A/'lang/en_us.json').write_text(json.dumps(lang,indent=2))
-print(len(rig),'bones;',sum(len(b['cubes']) for b in rig),'cuboids')
+print(len(rig),'bones;',sum(len(b.get('meshes',[])) for b in rig),'rounded meshes')

@@ -60,10 +60,37 @@ public final class CompanionGameTests {
         for(Act a:Act.values()){dog.setAct(a);h.assertTrue(dog.act()==a,"Act "+a+" survives the synched encoding");}
         for(String voice:HexSadaharu.VOICES)h.assertTrue(net.minecraftforge.registries.ForgeRegistries.SOUND_EVENTS.getValue(HexSadaharu.id(voice))!=null,"Sound event "+voice+" is registered");
         // A casual interaction aimed at nobody has to release itself rather than freezing him.
-        for(Act gesture:new Act[]{Act.LICK_PLAYER,Act.HEAD_BITE}) {
+        for(Act gesture:new Act[]{Act.LICK_PLAYER,Act.HEAD_BITE,Act.NUZZLE,Act.OFFER_PAW,Act.PETTED}) {
             dog.setAct(gesture);dog.gagTarget(Integer.MAX_VALUE);dog.personality.tick();
             h.assertTrue(dog.act()==Act.NONE&&dog.gagTarget()==-1,gesture+" with no target clears itself");
         }
+        // Same open menu must reflect server toggles; simulate the signed-short wire slots.
+        var player=h.makeMockPlayer();player.setPos(dog.getX(),dog.getY(),dog.getZ());
+        dog.setOwner(player.getUUID());dog.setOnGround(true);dog.setAct(Act.NONE);
+        var menu=new SadaharuMenu(31,player.getInventory(),dog);
+        var mirror=new SadaharuMenu(31,player.getInventory(),(Sadaharu)null);
+        menu.addSlotListener(new net.minecraft.world.inventory.ContainerListener(){
+            public void slotChanged(net.minecraft.world.inventory.AbstractContainerMenu m,int slot,net.minecraft.world.item.ItemStack stack){}
+            public void dataChanged(net.minecraft.world.inventory.AbstractContainerMenu m,int slot,int value){mirror.setData(slot,(short)value);}
+        });
+        boolean following=dog.following,automatic=dog.automaticHome;
+        h.assertTrue(menu.clickMenuButton(player,5)&&mirror.following()!=following,"Follow updates the existing menu through wire-safe data slots");
+        h.assertTrue(menu.clickMenuButton(player,2)&&mirror.automatic()!=automatic,"Night return updates without reopening");
+        h.assertTrue(menu.clickMenuButton(player,1)&&!mirror.hasHome(),"Clear home disables the home actions on the client");
+        h.assertTrue(menu.clickMenuButton(player,0)&&mirror.hasHome(),"Setting a home immediately enables the home actions");
+        h.assertTrue(menu.containerId==31&&mirror.revision()==4,"Commands acknowledge on the same menu");
+        var buffer=new net.minecraft.network.FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
+        try{
+            String label="minecraft:overworld / -1234567, 80, 2345678";
+            Network.HomeState.encode(new Network.HomeState(31,label),buffer);
+            var decoded=Network.HomeState.decode(buffer);
+            h.assertTrue(decoded.containerId()==31&&decoded.label().equals(label),"Home coordinates and dimension survive the packet without short truncation");
+        }finally{buffer.release();}
+        h.assertTrue(menu.clickMenuButton(player,6)&&dog.act()==Act.PETTED,"Pet button starts the synchronized petting response");
+        dog.memories.remember("owner_gesture",dog.now(),0);
+        h.assertTrue(menu.clickMenuButton(player,7)&&dog.act()==Act.PLAY_BOW,"Play button starts an owner-facing invitation");
+        dog.setOwner(owner);dog.home=p;dog.setAct(Act.NONE);dog.gagTarget(-1);
+        h.assertTrue(!menu.clickMenuButton(player,1),"A non-owner cannot clear the home through a stale menu");
         dog.following=true;
         h.assertTrue(dog.sendHome()&&!dog.following,"Sending him home cancels following, which is the opposite instruction");
         dog.homebound=0;dog.following=true;

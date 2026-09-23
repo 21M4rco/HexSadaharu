@@ -18,6 +18,8 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
     private final ModelPart root;
     private final Map<String,ModelPart> bones=new HashMap<>();
     private static JsonArray definitions;
+    private record Skin(ModelPart part,List<RoundedMesh> meshes,List<ModelPart> chain) {}
+    private final List<Skin> skins=new ArrayList<>();
     public static LayerDefinition layer() {
         try(var in=Minecraft.getInstance().getResourceManager().getResource(HexSadaharu.id("models/entity/sadaharu.json")).orElseThrow().open();var reader=new InputStreamReader(in,StandardCharsets.UTF_8)){
             definitions=JsonParser.parseReader(reader).getAsJsonObject().getAsJsonArray("bones");
@@ -39,6 +41,28 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
     public SadaharuModel(ModelPart root) {
         this.root=root;
         for(JsonElement e:definitions){JsonObject b=e.getAsJsonObject();String name=b.get("name").getAsString();ModelPart parent=b.get("parent").isJsonNull()?root:bones.get(b.get("parent").getAsString());bones.put(name,parent.getChild(name));}
+        Map<String,List<ModelPart>> chains=new HashMap<>();
+        for(JsonElement e:definitions){
+            JsonObject b=e.getAsJsonObject();String name=b.get("name").getAsString();
+            List<ModelPart> chain=new ArrayList<>();
+            if(!b.get("parent").isJsonNull())chain.addAll(chains.get(b.get("parent").getAsString()));
+            chain.add(bones.get(name));chains.put(name,chain);
+            if(b.has("meshes")){
+                List<RoundedMesh> meshes=new ArrayList<>();for(JsonElement mesh:b.getAsJsonArray("meshes"))meshes.add(new RoundedMesh(mesh.getAsJsonObject()));
+                skins.add(new Skin(bones.get(name),meshes,chain));
+            }
+        }
+    }
+    @Override public void renderToBuffer(com.mojang.blaze3d.vertex.PoseStack pose,com.mojang.blaze3d.vertex.VertexConsumer out,int light,int overlay,float red,float green,float blue,float alpha) {
+        root.render(pose,out,light,overlay,red,green,blue,alpha);
+        if(!root.visible)return;
+        for(Skin skin:skins){
+            if(skin.chain.stream().anyMatch(p->!p.visible))continue;
+            pose.pushPose();root.translateAndRotate(pose);
+            for(ModelPart part:skin.chain)part.translateAndRotate(pose);
+            for(RoundedMesh mesh:skin.meshes)mesh.render(pose,out,light,overlay,red,green,blue,alpha);
+            pose.popPose();
+        }
     }
     public ModelPart part(String name){return bones.get(name);}
     @Override public ModelPart root(){return root;}
@@ -47,11 +71,11 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
     private void rot(String bone,float x,float y,float z){ModelPart p=part(bone);p.xRot+=x;p.yRot+=y;p.zRot+=z;}
     private void move(String bone,float x,float y,float z){ModelPart p=part(bone);p.x+=x;p.y+=y;p.z+=z;}
     @Override public void setupAnim(Sadaharu dog,float limb,float amount,float time,float yaw,float pitch) {
-        root.getAllParts().forEach(ModelPart::resetPose);
+        root.getAllParts().forEach(p->{p.resetPose();p.xScale=p.yScale=p.zScale=1;p.visible=true;});
         Act act=dog.act();float age=dog.actAge(time-dog.tickCount);
         boolean asleep=act==Act.SLEEP||act==Act.SLEEP_TWITCH;
         float envelope=ease(age/10)*(act==Act.SLEEP||act==Act.DOWNED?1:ease((act.ticks-age)/12));
-        float targetSit=(act==Act.SIT||act==Act.SIT_PANT||act==Act.POOP)?1:0;
+        float targetSit=(act==Act.SIT||act==Act.SIT_PANT||act==Act.OFFER_PAW||act==Act.POOP)?1:0;
         float targetLie=(act==Act.LIE||act==Act.CHIN||act==Act.SIDE||act==Act.SLEEP||act==Act.SLEEP_TWITCH||act==Act.DOWNED)?1:0;
         float blend=1-(float)Math.pow(.78,Math.max(.1,Minecraft.getInstance().getDeltaFrameTime()));
         dog.clientSit=Mth.lerp(blend,dog.clientSit,targetSit);dog.clientLie=Mth.lerp(blend,dog.clientLie,targetLie);
@@ -97,6 +121,34 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
         if(sin(time*.039F+2)>.975F){rot("ear_right",sin(time*1.1F)*.1F,0,-.07F);}
         float jaw=0,squint=0;
         switch(act) {
+            case NUZZLE -> {
+                rot("neck",.14F*envelope,0,0);move("head",0,.8F*envelope,-1.5F*envelope);
+                rot("head",0,sin(age*.12F)*.14F*envelope,.18F*envelope);squint=.97F*envelope;
+                rot("ear_left",.18F*envelope,0,.13F*envelope);rot("ear_right",.18F*envelope,0,-.13F*envelope);
+            }
+            case OFFER_PAW -> {
+                rot("front_right_leg",-1.0F*envelope,0,-.1F*envelope);rot("front_right_paw",.25F*envelope,0,0);
+                rot("head",-.09F*envelope,0,-.18F*envelope);
+            }
+            case PETTED -> {
+                rot("head",-.17F*envelope,0,sin(age*.1F)*.12F*envelope);squint=.98F*envelope;
+                rot("ear_left",.25F*envelope,0,.2F*envelope);rot("ear_right",.25F*envelope,0,-.2F*envelope);
+                rot("body",0,sin(age*.24F)*.035F*envelope,0);jaw=.13F*envelope;
+            }
+            case SNIFF_TRAIL -> {
+                rot("neck",.52F*envelope,0,0);rot("head",.12F*envelope,sin(age*.13F)*.19F*envelope,0);
+                move("nose",0,0,sin(age*.8F)*.18F*envelope);
+            }
+            case LOOK_BACK -> {
+                rot("neck",-.09F*envelope,.45F*envelope,0);rot("head",0,.72F*envelope,-.14F*envelope);
+                rot("ear_right",0,0,-.16F*envelope);
+            }
+            case POUNCE -> {
+                float hop=Math.max(0,sin((age-10)*.17F))*envelope;
+                move("body",0,-3.4F*hop,0);rot("body",-.12F*hop,0,0);
+                rot("front_left_leg",-.55F*hop,0,0);rot("front_right_leg",-.55F*hop,0,0);
+                rot("head",.16F*envelope,0,.1F*envelope);
+            }
             case LOOK -> rot("head",0,sin(age*.05F)*.45F*envelope,0);
             case TILT_LEFT -> rot("head",0,0,-.3F*envelope);
             case TILT_RIGHT -> rot("head",0,0,.3F*envelope);
@@ -228,9 +280,13 @@ public final class SadaharuModel extends HierarchicalModel<Sadaharu> {
         dog.clientJaw=Mth.lerp(blend,dog.clientJaw,jaw);rot("lower_jaw",dog.clientJaw,0,0);
         // The cute :3 line belongs only to the fully closed-mouth expression.
         part("closed_mouth_mark").visible=jaw<.01F&&dog.clientJaw<.035F;
-        // Lids rest folded back inside the skull; closing them is a rotation towards zero.
+        // Round eyes compress into a gentle closed-eye smile without lids clipping the skull.
         float shut=Math.max(Math.max(blink(time*.05F+dog.getId()*.83F),sleep),squint);
-        part("eyelid_left").xRot*=1-shut;part("eyelid_right").xRot*=1-shut;
+        for(String side:new String[]{"left","right"}){
+            part("eye_"+side).yScale*=Math.max(.035F,1-shut);
+            part("eye_"+side).visible=shut<.92F;
+            part("eyelid_"+side).visible=shut>=.92F;
+        }
     }
     private static float pulse(float x,float start,float len){float u=(x-start)/len;return u<0||u>1?0:sin(u*Mth.PI);}
     /** About one blink every four seconds, with an occasional quick double. */

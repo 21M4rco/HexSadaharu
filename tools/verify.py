@@ -13,7 +13,17 @@ for b in rig['bones']:
   assert all(x>0 for x in c['size'])
   w,h,d=c['size']
   assert 2*(w+d)<=128 and h+d<=128, b['name']    # one flat 128px palette cell per cuboid
-for b in ['root','body','chest','neck','head','collar','upper_jaw','lower_jaw','tongue','nose','ear_left','ear_right','tail_0','tail_1','tail_2','tail_3','brow_left','brow_right','eye_left','eye_right','eyelid_left','eyelid_right']:
+ for m in b.get('meshes',[]):
+  assert 0<=m['material']<len(rig['palette'])
+  if 'vertices' in m:
+   for face in m['faces']:
+    assert 3<=len(face)<=4 and all(0<=i<len(m['vertices']) for i in face)
+   assert all(math.isfinite(v) for point in m['vertices'] for v in point)
+  else:
+   assert all(v>0 for v in m['size']) and 2<=m['power']<=2.25
+   assert 8<=m['rings']<=16 and 12<=m['segments']<=24
+   assert all(v>0 for v in m['taper'])
+for b in ['root' ,'body','chest','neck','head','collar','upper_jaw','lower_jaw','tongue','nose','ear_left','ear_right','tail_0','tail_1','tail_2','tail_3','brow_left','brow_right','eye_left','eye_right','eyelid_left','eyelid_right']:
  assert b in names,b
 for s in ['front_left','front_right','rear_left','rear_right']:
  assert s+'_leg' in names and s+'_paw' in names
@@ -44,7 +54,7 @@ def shell(prefixes):
  for b in rig['bones']:
   if any(b['name']==p or b['name'].startswith(p) for p in prefixes):
    inv=inverse(world[b['name']])
-   out+=[(inv,c['origin'],c['size']) for c in b['cubes'] if c['material'] in (0,1)]
+   out+=[(inv,c) for c in b['cubes']+b.get('meshes',[]) if c['material'] in (0,1)]
  return out
 def samples(o,s):
  pts=[]
@@ -55,19 +65,35 @@ def samples(o,s):
          [o[0]+s[0]*u,o[1],o[2]+s[2]*v],[o[0]+s[0]*u,o[1]+s[1],o[2]+s[2]*v],
          [o[0],o[1]+s[1]*u,o[2]+s[2]*v],[o[0]+s[0],o[1]+s[1]*u,o[2]+s[2]*v]]
  return pts
-def buried(bone,cubes,cover,label,eps=.04):
- m=world[bone]
- for c in cubes:
-  for p in samples(c['origin'],c['size']):
-   q=apply(m,p)
-   if not any(all(o[i]-eps<=(l:=apply(inv,q))[i]<=o[i]+s[i]+eps for i in range(3)) for inv,o,s in cover):
-    raise AssertionError(label+' is exposed at rest near '+str([round(v,2) for v in q]))
+def mesh_samples(c):
+ if 'origin' in c:return samples(c['origin'],c['size'])
+ assert 'center' in c
+ pts=[]
+ for i in range(c['rings']+1):
+  a=-math.pi/2+math.pi*i/c['rings'];y=math.copysign(abs(math.sin(a))**(2/c['power']),math.sin(a));g=c['taper'][0]+(c['taper'][1]-c['taper'][0])*(y+1)/2
+  for j in range(c['segments']):
+   t=2*math.pi*j/c['segments'];k=abs(math.cos(a))**(2/c['power'])
+   x=k*math.copysign(abs(math.cos(t))**(2/c['power']),math.cos(t));z=k*math.copysign(abs(math.sin(t))**(2/c['power']),math.sin(t))
+   pts.append([c['center'][0]+x*c['size'][0]/2*g,c['center'][1]+y*c['size'][1]/2,c['center'][2]+z*c['size'][2]/2*g])
+ return pts
+def contains(c,p):
+ if 'origin' in c:return all(c['origin'][i]-.04<=p[i]<=c['origin'][i]+c['size'][i]+.04 for i in range(3))
+ if 'center' not in c:return False
+ q=[(p[i]-c['center'][i])/(c['size'][i]/2) for i in range(3)]
+ g=c['taper'][0]+(c['taper'][1]-c['taper'][0])*(q[1]+1)/2
+ return g>0 and abs(q[0]/g)**c['power']+abs(q[1])**c['power']+abs(q[2]/g)**c['power']<=1.025
+
+def buried(bone,shapes,cover,label):
+ for c in shapes:
+  for p in mesh_samples(c):
+   q=apply(world[bone],p)
+   assert any(contains(shape,apply(inv,q)) for inv,shape in cover),label+' is exposed at rest near '+str([round(v,2) for v in q])
 mouth=shell(['head','cheek_','upper_jaw','lower_jaw'])
-skull=shell(['head','cheek_'])
 for name in ('upper_jaw','lower_jaw','tongue'):
- buried(name,[c for c in by[name]['cubes'] if c['material'] in (6,7)],mouth,name+' mouth interior')
+ buried(name,[c for c in by[name]['cubes']+by[name].get('meshes',[]) if c['material'] in (6,7)],mouth,name+' mouth interior')
+# Closed eyes are now separate smile marks, explicitly hidden until the blink completes.
 for name in ('eyelid_left','eyelid_right'):
- buried(name,by[name]['cubes'],skull,name)
+ assert by[name].get('meshes') and not by[name]['cubes']
 
 # The render smoke test poses parts directly and never calls setupAnim, so a bone the
 # animation controller names but the rig does not have would only fail in a live world.
@@ -202,4 +228,4 @@ for act in ('HEAD_BITE','LICK_PLAYER','POUT','BARK'):
  assert 'Act.'+act in personality,'Personality never reaches Act.'+act
  assert 'case '+act in model or re.search(r'case [A-Z_, ]*\b'+act+r'\b',model),'SadaharuModel does not animate Act.'+act
 
-print('Resource, rig, closed-mouth, uniqueness, voice, interaction, control and damage contracts passed.')
+print('Resource, curved rig, closed-mouth, uniqueness, voice, interaction, control and damage contracts passed.')
