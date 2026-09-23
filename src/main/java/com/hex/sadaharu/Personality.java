@@ -33,6 +33,9 @@ public final class Personality {
     private long soundUntil;
     private Vec3 soundPosition,exploreTarget;
     private int exploreUntil;
+    private boolean headBiteDamaged;
+    private static final int HEAD_BITE_COOLDOWN=5*24000;
+    private static final float HEAD_BITE_CHANCE=.40F;
     public boolean ownerGesture(Player player,Act gesture) {
         if(!dog.ownedBy(player)||dog.downed>0||dog.isVehicle()||!dog.onGround()||dog.isInWater()||dog.distanceToSqr(player)>100||threat!=null||dog.now()<retreatUntil)return false;
         if(gesture!=Act.PETTED&&gesture!=Act.PLAY_BOW)return false;
@@ -55,6 +58,7 @@ public final class Personality {
     }
     public void tick() {
         long now=dog.now();ServerPlayer owner=dog.owner();
+        if(dog.act()!=Act.HEAD_BITE)headBiteDamaged=false;
         if(dog.tickCount%20==0)observe(owner);
         if(threat!=null&&(!threat.isAlive()||threat.level()!=dog.level()||dog.distanceToSqr(threat)>1600))threat=null;
         if(now<retreatUntil) {retreat(owner);return;}
@@ -236,8 +240,15 @@ public final class Personality {
             Act[] gestures={Act.NUZZLE,Act.OFFER_PAW,Act.PLAY_BOW};Act gesture=gestures[dog.getRandom().nextInt(gestures.length)];
             dog.setAct(gesture);remember("affection",700+dog.getRandom().nextInt(500));nextChoice=dog.tickCount+gesture.ticks+30;return true;
         }
-        if(distance<144&&!knows("head_bite")&&dog.getRandom().nextInt(55)==0&&!owner.isSleeping()&&!owner.isPassenger()) {
-            interest=owner;dog.gagTarget(owner.getId());dog.setAct(Act.HEAD_BITE);remember("head_bite",6000);return true;
+        // Sadaharu's goofy head-bite is a rare owner-only event. One eligibility roll is
+        // consumed per five Minecraft days so repeated AI ticks cannot turn "40%" into "eventually 100%".
+        if(distance<144&&headBiteEligible(owner)&&!knows("head_bite_window")) {
+            remember("head_bite_window",HEAD_BITE_COOLDOWN);
+            if(dog.getRandom().nextFloat()<HEAD_BITE_CHANCE) {
+                interest=owner;dog.gagTarget(owner.getId());dog.setMood(Mood.PLAYFUL);
+                dog.getNavigation().stop();dog.setAct(Act.HEAD_BITE);headBiteDamaged=false;
+                nextChoice=dog.tickCount+Act.HEAD_BITE.ticks+30;return true;
+            }
         }
         if(distance<100&&!knows("lick")&&dog.getRandom().nextInt(18)==0&&!owner.isPassenger()) {
             interest=owner;dog.gagTarget(owner.getId());dog.setAct(Act.LICK_PLAYER);remember("lick",1800);return true;
@@ -276,14 +287,47 @@ public final class Personality {
         ServerPlayer owner=dog.owner();
         if(owner!=null)owner.displayClientMessage(net.minecraft.network.chat.Component.literal("Sadaharu has settled in at home."),true);
     }
+    private boolean headBiteEligible(ServerPlayer owner) {
+        return dog.ownedBy(owner)&&owner.isAlive()&&!owner.isSleeping()&&!owner.isPassenger()
+            &&owner.getHealth()>=owner.getMaxHealth()-.001F
+            &&dog.getHealth()>=dog.getMaxHealth()-.001F
+            // Existing food AI considers him fed once he is above the hunger-seeking threshold.
+            &&dog.hunger()>350&&dog.downed<=0&&!dog.isVehicle()&&dog.onGround()&&!dog.isInWaterRainOrBubble()
+            &&threat==null&&dog.now()>=retreatUntil;
+    }
+    private void clearCloseInteraction() {
+        dog.setAct(Act.NONE);dog.gagTarget(-1);dog.getNavigation().stop();headBiteDamaged=false;
+    }
     private void closeIn(double reach) {
         Entity target=dog.level().getEntity(dog.gagTarget());
-        if(!(target instanceof LivingEntity l)||!l.isAlive()||l.isPassenger()||dog.distanceToSqr(l)>100||!dog.hasLineOfSight(l)){dog.setAct(Act.NONE);dog.gagTarget(-1);dog.getNavigation().stop();return;}
+        if(!(target instanceof LivingEntity l)||!l.isAlive()||l.isPassenger()||dog.distanceToSqr(l)>100||!dog.hasLineOfSight(l)){clearCloseInteraction();return;}
+        // HEAD_BITE is never allowed to grab villagers, familiar strangers, or any player except his owner.
+        if(dog.act()==Act.HEAD_BITE&&(!(l instanceof ServerPlayer player)||!dog.ownedBy(player))){clearCloseInteraction();return;}
         dog.getLookControl().setLookAt(l,35,35);
         Vec3 delta=l.position().subtract(dog.position());
         dog.setYRot((float)(Math.atan2(-delta.x,delta.z)*180/Math.PI));dog.yBodyRot=dog.getYRot();dog.yHeadRot=dog.getYRot();
         if(dog.distanceToSqr(l)>reach){if(dog.tickCount%10==0)walk(l.position(),.65);return;}
-        dog.getNavigation().stop(); // The client jaw and tongue are aimed at this entity's eye height. No damage or forced player control.
+        dog.getNavigation().stop();
+        if(dog.act()==Act.HEAD_BITE&&l instanceof ServerPlayer player)holdHeadBite(player);
+        // Other close interactions only aim the client jaw/tongue; they never seize control.
+    }
+    private void holdHeadBite(ServerPlayer player) {
+        // Server-authoritative restraint: keep the owner's head inside the mouth for the bite.
+        // Client movement/jumps are overwritten every tick until the synchronized action ends.
+        double yaw=Math.toRadians(dog.getYRot());
+        Vec3 forward=new Vec3(-Math.sin(yaw),0,Math.cos(yaw));
+        Vec3 anchor=dog.position().add(forward.scale(1.38));
+        double feetY=dog.getY()+2.28-player.getEyeHeight();
+        float forcedYaw=dog.getYRot()+180F;
+        player.connection.teleport(anchor.x,feetY,anchor.z,forcedYaw,0F);
+        player.setDeltaMovement(Vec3.ZERO);player.hurtMarked=true;player.fallDistance=0;
+        // Exactly half a heart, exactly once. Direct health subtraction avoids armor or
+        // difficulty changing the requested 1-health-point result.
+        if(!headBiteDamaged&&dog.actAge(0)>=32F) {
+            headBiteDamaged=true;
+            player.setHealth(Math.max(1F,player.getHealth()-1F));
+            player.hurtMarked=true;
+        }
     }
     private boolean weather() {
         if(dog.level().isThundering()&&!knows("thunder")){dog.setMood(Mood.SCARED);dog.setAct(Act.ALERT);dog.voice("whine",.35F);remember("thunder",1600);}
@@ -333,11 +377,6 @@ public final class Personality {
         if(roll==93&&!knows("lick")) {
             for(Entity e:nearby)if(e instanceof Player&&knows("familiar:"+e.getUUID())&&!e.isPassenger()&&dog.distanceToSqr(e)<64) {
                 interest=e;dog.gagTarget(e.getId());dog.setAct(Act.LICK_PLAYER);remember("lick",1800);return;
-            }
-        }
-        if(roll==94&&!knows("head_bite")) {
-            for(Entity e:nearby)if((e instanceof Player&&knows("familiar:"+e.getUUID())||e instanceof AbstractVillager)&&e instanceof LivingEntity l&&!l.isBaby()&&!e.isPassenger()&&dog.distanceToSqr(e)<64) {
-                interest=e;dog.gagTarget(e.getId());dog.setAct(Act.HEAD_BITE);remember("head_bite",6000);return;
             }
         }
         if(roll>=80&&roll<88) {dog.getNavigation().stop();dog.setAct(Act.BARK);dog.voice("bark",.7F);nextChoice=dog.tickCount+Act.BARK.ticks+25;return;}
