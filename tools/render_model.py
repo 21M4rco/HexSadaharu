@@ -32,7 +32,7 @@ def render(pose,azim):
  right=np.array([-math.sin(az),math.cos(az),0]);view=np.array([math.cos(az)*math.cos(el),math.sin(az)*math.cos(el),math.sin(el)]);up=np.cross(view,right)
  bg=np.full((H,W,3),[218,226,236],np.uint8);depth=np.full((H,W),-1e9);matrices={}
  def triangle(v,col):
-  xyz=np.array([[np.dot(q,right)*7.2+W/2,-np.dot(q-np.array([0,0,24]),up)*7.2+H/2,np.dot(q,view)]for q in v])
+  xyz=np.array([[np.dot(q,right)*6.4+W/2,-np.dot(q-np.array([0,0,27]),up)*6.4+H/2,np.dot(q,view)]for q in v])
   xmin=max(0,int(xyz[:,0].min()));xmax=min(W-1,int(xyz[:,0].max()+1));ymin=max(0,int(xyz[:,1].min()));ymax=min(H-1,int(xyz[:,1].max()+1))
   if xmax<xmin or ymax<ymin:return
   a,b,c=xyz;den=(b[1]-c[1])*(a[0]-c[0])+(c[0]-b[0])*(a[1]-c[1])

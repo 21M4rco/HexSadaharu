@@ -47,10 +47,11 @@ head=bone('head','neck',[0,-5,-3]);blob(head,[0,HY,HZ],[27,HH,HD],layers=HL,powe
 def face(y,x=0): return HZ-HD/2*max(0,1-abs((y-HY)/(HH/2))**HP-abs(x/13.5)**HP)**(1/HP)   # head-local z of the face surface at height y
 for side in [-1,1]:
  lr='left' if side==1 else 'right'
- c=bone('cheek_'+str(side),'head',[side*9,-1.4,-4.5],(0,0,-side*6));blob(c,[0,0,0],[9.5,10,13],layers=5,power=2.3)
+ c=bone('cheek_'+str(side),'head',[side*9.2,-1.0,-4.4],(0,0,-side*6));blob(c,[0,0,0],[8.5,8.5,11.5],layers=5,power=2.3)
+ # Tiny tapered cheek wisps stay close to the silhouette.
  for i in range(2):
-  f=bone('cheek_tuft_'+str(side)+'_'+str(i),c['name'],[side*2.6,1.5+i*3.6,1.5],(0,0,side*(14+i*10)))
-  wedge(f,[[-1.5,-2,-1.5],[1.5,-2,-1.5],[side*1.5,2.2,0],[0,-2,1.8]],[[0,2,1],[0,3,2],[1,2,3],[0,1,3]])
+  f=bone('cheek_tuft_'+str(side)+'_'+str(i),c['name'],[side*2.5,1.3+i*1.8,1.8],(0,0,side*12))
+  wedge(f,[[-1.2,-1.5,-1],[1.2,-1.5,-1],[side*1.2,1.3,0],[0,-1.5,1]],[[0,2,1],[0,3,2],[1,2,3],[0,1,3]])
  # Clean triangular ears with soft white rims and a continuous pink inset.
  ear=bone('ear_'+lr,'head',[side*9.2,-13.,-1.5],(-8,0,side*18))
  wedge(ear,[[-5,0,-2],[5,0,-2],[.3,-10,-.6],[-4.2,0,2.5],[4.2,0,2.5],[.3,-9,.9]],
@@ -67,10 +68,16 @@ for side in [-1,1]:
   x=(j-2)*.96
   blob(lid,[x,.2+abs(j-2)*.15,-.88],[1.2,.4,.3],4,power=2)
  brow=bone('brow_'+lr,'head',[side*6.3,-9.1,face(-9.1,6.3)-.1],(0,-side*20,0))
- for j in range(5):
-  t=j/4
-  blob(brow,[(t-.5)*4.7,-math.sin(t*math.pi)*1.0,0],[1.6,1.15,.75],4,power=2)
- blob(brow,[-side*1.6,.1,-.08],[1.7,1.85,.8],4,power=2)
+ verts=[];faces=[]
+ for j in range(13):
+  t=j/12;x=(t-.5)*4.7;y=-math.sin(t*math.pi)*1.0
+  radius=.43+.2*(1-t if side==1 else t)
+  for k in range(8):
+   a=2*math.pi*k/8;verts.append([x,y+math.sin(a)*radius,math.cos(a)*.35])
+ for j in range(12):
+  for k in range(8):faces.append([j*8+k,j*8+(k+1)%8,(j+1)*8+(k+1)%8,(j+1)*8+k])
+ wedge(brow,verts,faces,4)
+ blob(brow,[-side*1.8,0,-.02],[1.4,1.5,.72],4,power=2)
 # Short soft muzzle. While the jaw is shut nothing dark, and no tooth, is exposed.
 MY,MH,MD,MZ,MPW,ML=1.2,5.2,8.,-2.6,2.4,5
 upper=bone('upper_jaw','head',[0,0,-9]);blob(upper,[0,MY,MZ],[11.8,MH,MD],layers=ML,power=MPW)
@@ -97,12 +104,9 @@ for i,(p,piv,rot,size) in enumerate([('body',[0,-5,14],[48,0,0],[10.5,10.5,13]),
 ruff=bone('chest_ruff','chest',[0,2,-5.6]);blob(ruff,[0,0,0],[18,19,5],power=2,taper=(1,.45))
 for j in range(7):
  u=(j-3)/3.
- b=bone('chest_fluff_'+str(j),'chest',[u*7.5,8.-abs(u)*3.,-6.0],(0,0,u*20))
- blob(b,[0,0,0],[3.8,5.,2.8],power=2,taper=(1.1,.35))
-for side in [-1,1]:
- for j in range(3):
-  b=bone('belly_fluff_'+str(side)+'_'+str(j),'body',[side*9.4,7.6,j*6.5-5],(0,0,side*22))
-  blob(b,[0,1,0],[4.8,6.,5.5],power=2,taper=(1,.35))
+ b=bone('chest_fluff_'+str(j),'chest',[u*6.3,7.-abs(u)*2.5,-6.6],(0,0,-u*10))
+ wedge(b,[[-1.65,-2.4,-.3],[1.65,-2.4,-.3],[0,3.0-abs(u)*.7,-.1],[0,-2.4,1.7]],
+       [[0,2,1],[0,3,2],[1,2,3],[0,1,3]])
 (A/'models/entity/sadaharu.json').write_text(json.dumps({'texture_size':[512,512],'palette':colors,'bones':rig},indent=2))
 im=Image.new('RGBA',(512,512)); d=ImageDraw.Draw(im)
 for i,c in enumerate(colors):x=(i%4)*128;y=(i//4)*128;d.rectangle((x,y,x+127,y+127),fill=c)
