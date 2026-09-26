@@ -217,7 +217,20 @@ public class Sadaharu extends PathfinderMob implements PlayerRideableJumping {
         return true;
     }
     @Override public boolean isInvulnerableTo(DamageSource d) {return downed>0||super.isInvulnerableTo(d);}
-    @Override public void setHealth(float h) {super.setHealth(Float.isFinite(h)?h:getMaxHealth());}
+    /**
+     * Health never reaches zero on the server. Something that writes zero directly (another mod's
+     * instant kill, a command) would otherwise start vanilla's death sequence, whose removal he
+     * refuses, so the death animation replays every tick and viewers keep drawing him fallen and
+     * red after he recovers. A killing write puts him down instead; while down it holds at one.
+     */
+    @Override public void setHealth(float h) {
+        if(!Float.isFinite(h))h=getMaxHealth();
+        if(h<=0&&!level().isClientSide) {
+            if(downed<=0&&isAddedToWorld()){collapse();return;}
+            h=1;
+        }
+        super.setHealth(h);
+    }
     @Override public void die(DamageSource d) {if(level().isClientSide)super.die(d);else collapse();}
     @Override public void kill() {if(!level().isClientSide)collapse();}
     /** Knocked down where he stood: invulnerable, immobile, and on his way home. */
